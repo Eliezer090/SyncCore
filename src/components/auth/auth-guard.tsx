@@ -37,7 +37,8 @@ export function AuthGuard({ children }: AuthGuardProps): React.JSX.Element | nul
     }
 
     // Verificar se usuário tem empresa vinculada
-    if (!user.empresa) {
+    // Admin não precisa de empresa vinculada - ele gerencia todas as empresas
+    if (!user.empresa && user.papel !== 'admin') {
       logger.debug('[AuthGuard]: User has no empresa, showing setup modal');
       setShowSetupEmpresa(true);
     }
