@@ -55,7 +55,7 @@ export function usePermissoes(): UsePermissoesReturn {
       console.log('%c[usePermissoes] Permissões carregadas com sucesso:', 'color: green; font-weight: bold;', {
         total: perms.length,
         papel: user.papel,
-        permissoes: perms.map(p => ({
+        permissoes: perms.map((p: PermissaoCompleta) => ({
           codigo: p.recurso_codigo,
           nome: p.recurso_nome,
           visualizar: p.pode_visualizar,
