@@ -1,0 +1,44 @@
+# Dependências
+node_modules
+.pnpm-store
+
+# Build output local (será gerado no container)
+.next
+
+# Git
+.git
+.gitignore
+
+# Arquivos de desenvolvimento
+*.md
+!README.md
+.env.local
+.env.development
+.env.development.local
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testes
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+
+# Scripts de desenvolvimento
+scripts/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -1,0 +1,309 @@
+'use client';
+
+import * as React from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardActions from '@mui/material/CardActions';
+import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+import Divider from '@mui/material/Divider';
+import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormHelperText from '@mui/material/FormHelperText';
+import Grid from '@mui/material/Grid';
+import InputAdornment from '@mui/material/InputAdornment';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import OutlinedInput from '@mui/material/OutlinedInput';
+import Select from '@mui/material/Select';
+import Switch from '@mui/material/Switch';
+
+import type { Empresa } from '@/types/database';
+import { ImageUpload } from '@/components/core/image-upload';
+
+const schema = z.object({
+  nome: z.string().min(1, 'Nome é obrigatório'),
+  tipo_negocio: z.string().min(1, 'Tipo de negócio é obrigatório'),
+  modelo_negocio: z.enum(['produto', 'servico', 'ambos']),
+  whatsapp_vinculado: z.string().nullable().optional(),
+  nome_agente: z.string().nullable().optional(),
+  ativo: z.boolean(),
+  oferece_delivery: z.boolean(),
+  taxa_entrega_padrao: z.number().min(0),
+  valor_minimo_entrega_gratis: z.number().nullable().optional(),
+  tempo_cancelamento_minutos: z.number().min(0).nullable().optional(),
+  url_logo: z.string().nullable().optional(),
+  descricao_negocio: z.string().nullable().optional(),
+});
+
+type FormData = z.infer<typeof schema>;
+
+interface EmpresaFormProps {
+  empresa?: Empresa | null;
+  onSubmit: (data: FormData) => void;
+  onCancel: () => void;
+  loading?: boolean;
+}
+
+export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFormProps): React.JSX.Element {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    reset,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      nome: empresa?.nome || '',
+      tipo_negocio: empresa?.tipo_negocio || '',
+      modelo_negocio: empresa?.modelo_negocio || 'ambos',
+      whatsapp_vinculado: empresa?.whatsapp_vinculado || '',
+      nome_agente: empresa?.nome_agente || '',
+      ativo: empresa?.ativo ?? true,
+      oferece_delivery: empresa?.oferece_delivery ?? false,
+      taxa_entrega_padrao: empresa?.taxa_entrega_padrao ?? 0,
+      valor_minimo_entrega_gratis: empresa?.valor_minimo_entrega_gratis ?? null,
+      tempo_cancelamento_minutos: empresa?.tempo_cancelamento_minutos ?? 60,
+      url_logo: empresa?.url_logo ?? null,
+      descricao_negocio: empresa?.descricao_negocio ?? null,
+    },
+  });
+
+  // Reset form when empresa changes
+  React.useEffect(() => {
+    reset({
+      nome: empresa?.nome || '',
+      tipo_negocio: empresa?.tipo_negocio || '',
+      modelo_negocio: empresa?.modelo_negocio || 'ambos',
+      whatsapp_vinculado: empresa?.whatsapp_vinculado || '',
+      nome_agente: empresa?.nome_agente || '',
+      ativo: empresa?.ativo ?? true,
+      oferece_delivery: empresa?.oferece_delivery ?? false,
+      taxa_entrega_padrao: empresa?.taxa_entrega_padrao ?? 0,
+      valor_minimo_entrega_gratis: empresa?.valor_minimo_entrega_gratis ?? null,
+      tempo_cancelamento_minutos: empresa?.tempo_cancelamento_minutos ?? 60,
+      url_logo: empresa?.url_logo ?? null,
+      descricao_negocio: empresa?.descricao_negocio ?? null,
+    });
+  }, [empresa, reset]);
+
+  const oferece_delivery = watch('oferece_delivery');
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Card>
+        <CardHeader title={empresa ? 'Editar Empresa' : 'Nova Empresa'} />
+        <Divider />
+        <CardContent>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12 }}>
+              <Controller
+                name="url_logo"
+                control={control}
+                render={({ field }) => (
+                  <ImageUpload
+                    value={field.value}
+                    onChange={field.onChange}
+                    folder="empresas/logos"
+                    label="Logo da Empresa"
+                    variant="avatar"
+                    width={120}
+                    height={120}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="nome"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={Boolean(errors.nome)}>
+                    <InputLabel>Nome</InputLabel>
+                    <OutlinedInput {...field} label="Nome" />
+                    {errors.nome && <FormHelperText>{errors.nome.message}</FormHelperText>}
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="tipo_negocio"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={Boolean(errors.tipo_negocio)}>
+                    <InputLabel>Tipo de Negócio</InputLabel>
+                    <OutlinedInput {...field} label="Tipo de Negócio" />
+                    {errors.tipo_negocio && <FormHelperText>{errors.tipo_negocio.message}</FormHelperText>}
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="modelo_negocio"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Modelo de Negócio</InputLabel>
+                    <Select {...field} label="Modelo de Negócio">
+                      <MenuItem value="produto">Produto</MenuItem>
+                      <MenuItem value="servico">Serviço</MenuItem>
+                      <MenuItem value="ambos">Ambos</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="whatsapp_vinculado"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>WhatsApp Vinculado</InputLabel>
+                    <OutlinedInput {...field} value={field.value || ''} label="WhatsApp Vinculado" />
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="nome_agente"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Nome do Agente</InputLabel>
+                    <OutlinedInput {...field} value={field.value || ''} label="Nome do Agente" />
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="tempo_cancelamento_minutos"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Tempo p/ Cancelamento</InputLabel>
+                    <OutlinedInput
+                      {...field}
+                      type="number"
+                      label="Tempo p/ Cancelamento"
+                      endAdornment={<InputAdornment position="end">minutos</InputAdornment>}
+                      value={field.value ?? 60}
+                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)}
+                    />
+                    <FormHelperText>Tempo máximo que o cliente pode cancelar um agendamento</FormHelperText>
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Controller
+                name="descricao_negocio"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Descrição Estratégica para I.A.</InputLabel>
+                    <OutlinedInput
+                      {...field}
+                      value={field.value || ''}
+                      label="Descrição Estratégica para I.A."
+                      multiline
+                      minRows={4}
+                      maxRows={8}
+                      placeholder="Ex: Somos uma barbearia de luxo focada no público jovem. Oferecemos cerveja artesanal de brinde. Nosso tom de voz deve ser descontraído, mas extremamente respeitoso. Se o cliente for novo, ofereça o 'Combo VIP' que inclui barba e cabelo."
+                    />
+                    <FormHelperText>
+                      Descreva características do negócio, tom de voz, ofertas especiais e instruções para o agente de I.A.
+                    </FormHelperText>
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', height: '100%' }}>
+                <Controller
+                  name="ativo"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={<Switch checked={field.value} onChange={field.onChange} />}
+                      label="Ativo"
+                    />
+                  )}
+                />
+                <Controller
+                  name="oferece_delivery"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={<Switch checked={field.value} onChange={field.onChange} />}
+                      label="Oferece Delivery"
+                    />
+                  )}
+                />
+              </Box>
+            </Grid>
+            {oferece_delivery && (
+              <>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Controller
+                    name="taxa_entrega_padrao"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth>
+                        <InputLabel>Taxa de Entrega Padrão</InputLabel>
+                        <OutlinedInput
+                          {...field}
+                          type="number"
+                          label="Taxa de Entrega Padrão"
+                          startAdornment={<InputAdornment position="start">R$</InputAdornment>}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                    )}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Controller
+                    name="valor_minimo_entrega_gratis"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth>
+                        <InputLabel>Valor Mínimo Entrega Grátis</InputLabel>
+                        <OutlinedInput
+                          {...field}
+                          type="number"
+                          label="Valor Mínimo Entrega Grátis"
+                          startAdornment={<InputAdornment position="start">R$</InputAdornment>}
+                          value={field.value ?? ''}
+                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                        />
+                      </FormControl>
+                    )}
+                  />
+                </Grid>
+              </>
+            )}
+          </Grid>
+        </CardContent>
+        <Divider />
+        <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
+          <Button onClick={onCancel} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" variant="contained" disabled={loading}>
+            {loading ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </CardActions>
+      </Card>
+    </form>
+  );
+}
