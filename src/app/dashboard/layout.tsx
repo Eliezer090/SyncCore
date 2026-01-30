@@ -7,6 +7,9 @@ import { AuthGuard } from '@/components/auth/auth-guard';
 import { MainNav } from '@/components/dashboard/layout/main-nav';
 import { SideNav } from '@/components/dashboard/layout/side-nav';
 
+// Força renderização dinâmica para todo o dashboard
+export const dynamic = 'force-dynamic';
+
 interface LayoutProps {
   children: React.ReactNode;
 }

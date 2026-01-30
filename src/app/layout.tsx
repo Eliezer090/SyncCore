@@ -10,6 +10,9 @@ import { DebugPermissoes } from '@/components/core/debug-permissoes';
 
 export const viewport = { width: 'device-width', initialScale: 1 } satisfies Viewport;
 
+// Força renderização dinâmica para toda a aplicação
+export const dynamic = 'force-dynamic';
+
 interface LayoutProps {
   children: React.ReactNode;
 }
