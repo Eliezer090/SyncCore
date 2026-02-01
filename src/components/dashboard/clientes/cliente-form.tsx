@@ -22,6 +22,7 @@ import { ImageUpload } from '@/components/core/image-upload';
 const schema = z.object({
   nome: z.string().nullable().optional(),
   telefone: z.string().min(1, 'Telefone é obrigatório'),
+  email: z.string().email('E-mail inválido').nullable().optional().or(z.literal('')),
   url_foto: z.string().nullable().optional(),
 });
 
@@ -44,6 +45,7 @@ export function ClienteForm({ cliente, onSubmit, onCancel, loading }: ClienteFor
     defaultValues: {
       nome: cliente?.nome || '',
       telefone: cliente?.telefone || '',
+      email: cliente?.email || '',
       url_foto: cliente?.url_foto ?? null,
     },
   });
@@ -93,6 +95,19 @@ export function ClienteForm({ cliente, onSubmit, onCancel, loading }: ClienteFor
                     <InputLabel>Telefone</InputLabel>
                     <OutlinedInput {...field} label="Telefone" />
                     {errors.telefone && <FormHelperText>{errors.telefone.message}</FormHelperText>}
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="email"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={Boolean(errors.email)}>
+                    <InputLabel>E-mail</InputLabel>
+                    <OutlinedInput {...field} value={field.value || ''} label="E-mail" type="email" />
+                    {errors.email && <FormHelperText>{errors.email.message}</FormHelperText>}
                   </FormControl>
                 )}
               />

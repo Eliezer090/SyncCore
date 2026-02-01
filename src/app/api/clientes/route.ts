@@ -101,15 +101,18 @@ export async function POST(request: NextRequest) {
     const empresaIdFiltro = getEmpresaIdParaQuery(user);
 
     const body = await request.json();
-    const { nome, telefone, url_foto } = body;
+    const { nome, telefone, email, url_foto } = body;
+
+    // Normalizar email vazio para null
+    const emailNormalizado = email?.trim() || null;
 
     // Criar cliente
     const sql = `
-      INSERT INTO clientes (nome, telefone, url_foto)
-      VALUES ($1, $2, $3)
+      INSERT INTO clientes (nome, telefone, email, url_foto)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const params = [nome, telefone, url_foto];
+    const params = [nome, telefone, emailNormalizado, url_foto];
     const result = await queryOne<Cliente>(sql, params);
 
     // Se tem empresa, criar vínculo

@@ -32,6 +32,10 @@ export async function PUT(
     const body = await request.json();
     const { nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio } = body;
 
+    // Converter strings vazias para null (evita erro de unique constraint)
+    const whatsappNormalizado = whatsapp_vinculado?.trim() || null;
+    const nomeAgenteNormalizado = nome_agente?.trim() || null;
+
     // Busca a empresa atual para verificar se a imagem mudou
     const empresaAtual = await queryOne<Empresa>('SELECT url_logo FROM empresas WHERE id = $1', [id]);
     
@@ -57,7 +61,7 @@ export async function PUT(
       WHERE id = $13
       RETURNING *
     `;
-    const sqlParams = [nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio, id];
+    const sqlParams = [nome, tipo_negocio, ativo, whatsappNormalizado, nomeAgenteNormalizado, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio, id];
 
     const result = await queryOne<Empresa>(sql, sqlParams);
 

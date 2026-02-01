@@ -4,6 +4,7 @@ export interface Cliente {
   id: number;
   nome: string | null;
   telefone: string;
+  email: string | null;
   criado_em: Date;
   url_foto: string | null;
 }

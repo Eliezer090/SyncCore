@@ -30,7 +30,10 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { nome, telefone, url_foto } = body;
+    const { nome, telefone, email, url_foto } = body;
+
+    // Normalizar email vazio para null
+    const emailNormalizado = email?.trim() || null;
 
     // Busca o cliente atual para verificar se a imagem mudou
     const clienteAtual = await queryOne<Cliente>('SELECT url_foto FROM clientes WHERE id = $1', [id]);
@@ -41,11 +44,11 @@ export async function PUT(
     }
 
     const sql = `
-      UPDATE clientes SET nome = $1, telefone = $2, url_foto = $3
-      WHERE id = $4
+      UPDATE clientes SET nome = $1, telefone = $2, email = $3, url_foto = $4
+      WHERE id = $5
       RETURNING *
     `;
-    const sqlParams = [nome, telefone, url_foto, id];
+    const sqlParams = [nome, telefone, emailNormalizado, url_foto, id];
 
     const result = await queryOne<Cliente>(sql, sqlParams);
 
