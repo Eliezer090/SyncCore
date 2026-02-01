@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { NavItemConfig } from '@/types/nav';
 import type { PermissaoCompleta } from '@/types/database';
+import type { ModeloNegocio } from '@/types/user';
 import { useUser } from './use-user';
 import { paths } from '@/paths';
 
@@ -13,41 +14,44 @@ export interface NavGroupConfig {
 }
 
 // Mapeamento de recurso_codigo para configuração do menu
+// modeloNegocio: 'produto', 'servico', 'ambos' ou undefined (sempre visível)
 const recursoToNavItem: Record<string, { 
   title: string; 
   href: string; 
   icon: string;
   grupo: string;
-  subGrupo?: string; // Para itens que são subitens de um grupo
+  subGrupo?: string;
+  modeloNegocio?: 'produto' | 'servico'; // Se definido, só aparece para esse modelo (ou 'ambos')
 }> = {
   'dashboard': { title: 'Dashboard', href: paths.dashboard.overview, icon: 'chart-pie', grupo: 'Geral' },
   'empresas': { title: 'Empresas', href: paths.dashboard.empresas, icon: 'buildings', grupo: 'Geral' },
+  'minha-empresa': { title: 'Minha Empresa', href: paths.dashboard.minhaEmpresa, icon: 'buildings', grupo: 'Geral' },
   'clientes': { title: 'Clientes', href: paths.dashboard.clientes, icon: 'users-four', grupo: 'Geral' },
   'usuarios': { title: 'Usuários', href: paths.dashboard.usuarios, icon: 'user-circle', grupo: 'Geral' },
   'enderecos': { title: 'Endereços', href: paths.dashboard.enderecos, icon: 'map-pin', grupo: 'Geral' },
   'horarios-empresa': { title: 'Horários Empresa', href: paths.dashboard.horariosEmpresa, icon: 'clock', grupo: 'Geral' },
   
-  // Produtos & Pedidos - Catálogo
-  'categorias-produto': { title: 'Categorias', href: paths.dashboard.categoriasProduto, icon: 'list-bullets', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo' },
-  'produtos': { title: 'Produtos', href: paths.dashboard.produtos, icon: 'cube', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo' },
-  'produto-variacoes': { title: 'Variações', href: paths.dashboard.produtoVariacoes, icon: 'cube', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo' },
-  'produto-adicionais': { title: 'Adicionais', href: paths.dashboard.produtoAdicionais, icon: 'cube', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo' },
-  'estoque': { title: 'Estoque', href: paths.dashboard.estoque, icon: 'warehouse', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo' },
+  // Produtos & Pedidos - Catálogo (só para modelo 'produto' ou 'ambos')
+  'categorias-produto': { title: 'Categorias', href: paths.dashboard.categoriasProduto, icon: 'list-bullets', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo', modeloNegocio: 'produto' },
+  'produtos': { title: 'Produtos', href: paths.dashboard.produtos, icon: 'cube', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo', modeloNegocio: 'produto' },
+  'produto-variacoes': { title: 'Variações', href: paths.dashboard.produtoVariacoes, icon: 'cube', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo', modeloNegocio: 'produto' },
+  'produto-adicionais': { title: 'Adicionais', href: paths.dashboard.produtoAdicionais, icon: 'cube', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo', modeloNegocio: 'produto' },
+  'estoque': { title: 'Estoque', href: paths.dashboard.estoque, icon: 'warehouse', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo', modeloNegocio: 'produto' },
   
-  // Produtos & Pedidos - Vendas
-  'pedidos': { title: 'Pedidos', href: paths.dashboard.pedidos, icon: 'shopping-cart', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas' },
-  'pedido-itens': { title: 'Itens do Pedido', href: paths.dashboard.pedidoItens, icon: 'shopping-cart', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas' },
-  'pedido-item-adicionais': { title: 'Adicionais Item', href: paths.dashboard.pedidoItemAdicionais, icon: 'shopping-cart', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas' },
-  'pagamentos': { title: 'Pagamentos', href: paths.dashboard.pagamentos, icon: 'credit-card', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas' },
+  // Produtos & Pedidos - Vendas (só para modelo 'produto' ou 'ambos')
+  'pedidos': { title: 'Pedidos', href: paths.dashboard.pedidos, icon: 'shopping-cart', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas', modeloNegocio: 'produto' },
+  'pedido-itens': { title: 'Itens do Pedido', href: paths.dashboard.pedidoItens, icon: 'shopping-cart', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas', modeloNegocio: 'produto' },
+  'pedido-item-adicionais': { title: 'Adicionais Item', href: paths.dashboard.pedidoItemAdicionais, icon: 'shopping-cart', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas', modeloNegocio: 'produto' },
+  'pagamentos': { title: 'Pagamentos', href: paths.dashboard.pagamentos, icon: 'credit-card', grupo: 'Produtos & Pedidos', subGrupo: 'Vendas', modeloNegocio: 'produto' },
   
-  // Serviços & Agenda
-  'servicos': { title: 'Serviços', href: paths.dashboard.servicos, icon: 'scissors', grupo: 'Serviços & Agenda' },
-  'profissionais': { title: 'Profissionais', href: paths.dashboard.profissionais, icon: 'users', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais' },
-  'servicos-profissional': { title: 'Serviços do Prof.', href: paths.dashboard.servicosProfissional, icon: 'scissors', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais' },
-  'expediente-profissional': { title: 'Expediente', href: paths.dashboard.expedienteProfissional, icon: 'clock', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais' },
-  'bloqueios-profissional': { title: 'Bloqueios', href: paths.dashboard.bloqueiosProfissional, icon: 'prohibit', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais' },
-  'agendamentos': { title: 'Agendamentos', href: paths.dashboard.agendamentos, icon: 'calendar', grupo: 'Serviços & Agenda', subGrupo: 'Agenda' },
-  'agendamento-servicos': { title: 'Serviços do Agend.', href: paths.dashboard.agendamentoServicos, icon: 'calendar', grupo: 'Serviços & Agenda', subGrupo: 'Agenda' },
+  // Serviços & Agenda (só para modelo 'servico' ou 'ambos')
+  'servicos': { title: 'Serviços', href: paths.dashboard.servicos, icon: 'scissors', grupo: 'Serviços & Agenda', modeloNegocio: 'servico' },
+  'profissionais': { title: 'Profissionais', href: paths.dashboard.profissionais, icon: 'users', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais', modeloNegocio: 'servico' },
+  'servicos-profissional': { title: 'Serviços do Prof.', href: paths.dashboard.servicosProfissional, icon: 'scissors', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais', modeloNegocio: 'servico' },
+  'expediente-profissional': { title: 'Expediente', href: paths.dashboard.expedienteProfissional, icon: 'clock', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais', modeloNegocio: 'servico' },
+  'bloqueios-profissional': { title: 'Bloqueios', href: paths.dashboard.bloqueiosProfissional, icon: 'prohibit', grupo: 'Serviços & Agenda', subGrupo: 'Profissionais', modeloNegocio: 'servico' },
+  'agendamentos': { title: 'Agendamentos', href: paths.dashboard.agendamentos, icon: 'calendar', grupo: 'Serviços & Agenda', subGrupo: 'Agenda', modeloNegocio: 'servico' },
+  'agendamento-servicos': { title: 'Serviços do Agend.', href: paths.dashboard.agendamentoServicos, icon: 'calendar', grupo: 'Serviços & Agenda', subGrupo: 'Agenda', modeloNegocio: 'servico' },
   
   // Comunicação
   'historico-conversas': { title: 'Histórico Conversas', href: paths.dashboard.historicoConversas, icon: 'chat-circle', grupo: 'Comunicação' },
@@ -57,6 +61,21 @@ const recursoToNavItem: Record<string, {
   'minha-conta': { title: 'Minha Conta', href: paths.dashboard.account, icon: 'user', grupo: 'Configurações' },
   'permissoes': { title: 'Permissões', href: paths.dashboard.permissoes, icon: 'shield-check', grupo: 'Configurações' },
 };
+
+// Função para verificar se um recurso deve ser visível dado o modelo de negócio
+function isRecursoVisivelParaModelo(recursoConfig: typeof recursoToNavItem[string], modeloNegocio: ModeloNegocio | undefined): boolean {
+  // Se o recurso não tem restrição de modelo, sempre é visível
+  if (!recursoConfig.modeloNegocio) return true;
+  
+  // Se não há modelo definido (admin sem empresa selecionada), mostra tudo
+  if (!modeloNegocio) return true;
+  
+  // Se a empresa trabalha com 'ambos', mostra tudo
+  if (modeloNegocio === 'ambos') return true;
+  
+  // Caso contrário, só mostra se o modelo bate
+  return recursoConfig.modeloNegocio === modeloNegocio;
+}
 
 // Ordem dos grupos
 const grupoOrdem: Record<string, number> = {
@@ -136,9 +155,12 @@ export function useNavItems(): UseNavItemsReturn {
 
   // Gerar os grupos de navegação baseados nas permissões
   const navGroups = React.useMemo<NavGroupConfig[]>(() => {
-    // Admin tem acesso a tudo
+    // Obter o modelo de negócio da empresa ativa
+    const modeloNegocio = user?.empresaAtiva?.modelo_negocio || user?.empresa?.modelo_negocio;
+
+    // Admin tem acesso a tudo (filtrado por modelo de negócio se tiver empresa selecionada)
     if (user?.papel === 'admin') {
-      return gerarMenuCompleto();
+      return gerarMenuCompleto(modeloNegocio);
     }
 
     if (permissoes.length === 0) {
@@ -148,15 +170,36 @@ export function useNavItems(): UseNavItemsReturn {
     // Filtrar apenas permissões com pode_visualizar = true
     const permissoesVisiveis = permissoes.filter(p => p.pode_visualizar);
     
-    console.log('[useNavItems] Gerando menu para', permissoesVisiveis.length, 'permissões visíveis');
+    console.log('[useNavItems] Gerando menu para', permissoesVisiveis.length, 'permissões visíveis, modelo:', modeloNegocio);
 
     // Agrupar por grupo
     const porGrupo: Record<string, { items: NavItemConfig[]; subGrupos: Record<string, NavItemConfig[]> }> = {};
+
+    // Adicionar "Minha Empresa" para gerentes
+    if (user?.papel === 'gerente' && user?.empresa) {
+      const config = recursoToNavItem['minha-empresa'];
+      if (config) {
+        if (!porGrupo[config.grupo]) {
+          porGrupo[config.grupo] = { items: [], subGrupos: {} };
+        }
+        porGrupo[config.grupo].items.push({
+          key: 'minha-empresa',
+          title: config.title,
+          href: config.href,
+          icon: config.icon,
+        });
+      }
+    }
 
     permissoesVisiveis.forEach(perm => {
       const config = recursoToNavItem[perm.recurso_codigo];
       if (!config) {
         console.warn('[useNavItems] Recurso não mapeado:', perm.recurso_codigo);
+        return;
+      }
+
+      // Filtrar por modelo de negócio
+      if (!isRecursoVisivelParaModelo(config, modeloNegocio)) {
         return;
       }
 
@@ -213,7 +256,7 @@ export function useNavItems(): UseNavItemsReturn {
 
     console.log('[useNavItems] Menu gerado:', grupos.map(g => ({ title: g.title, items: g.items.length })));
     return grupos;
-  }, [permissoes, user?.papel]);
+  }, [permissoes, user?.papel, user?.empresa?.modelo_negocio, user?.empresaAtiva?.modelo_negocio, user?.empresa]);
 
   return {
     navGroups,
@@ -224,8 +267,8 @@ export function useNavItems(): UseNavItemsReturn {
 }
 
 // Função para gerar menu completo (para admin)
-function gerarMenuCompleto(): NavGroupConfig[] {
-  return [
+function gerarMenuCompleto(modeloNegocio?: ModeloNegocio): NavGroupConfig[] {
+  const grupos: NavGroupConfig[] = [
     {
       key: 'geral',
       title: 'Geral',
@@ -238,7 +281,11 @@ function gerarMenuCompleto(): NavGroupConfig[] {
         { key: 'horarios-empresa', title: 'Horários Empresa', href: paths.dashboard.horariosEmpresa, icon: 'clock' },
       ],
     },
-    {
+  ];
+
+  // Adiciona Produtos & Pedidos apenas se modelo for 'produto' ou 'ambos' ou undefined (admin sem empresa)
+  if (!modeloNegocio || modeloNegocio === 'produto' || modeloNegocio === 'ambos') {
+    grupos.push({
       key: 'produtos-pedidos',
       title: 'Produtos & Pedidos',
       items: [
@@ -266,8 +313,12 @@ function gerarMenuCompleto(): NavGroupConfig[] {
           ],
         },
       ],
-    },
-    {
+    });
+  }
+
+  // Adiciona Serviços & Agenda apenas se modelo for 'servico' ou 'ambos' ou undefined (admin sem empresa)
+  if (!modeloNegocio || modeloNegocio === 'servico' || modeloNegocio === 'ambos') {
+    grupos.push({
       key: 'servicos-agenda',
       title: 'Serviços & Agenda',
       items: [
@@ -293,7 +344,10 @@ function gerarMenuCompleto(): NavGroupConfig[] {
           ],
         },
       ],
-    },
+    });
+  }
+
+  grupos.push(
     {
       key: 'comunicacao',
       title: 'Comunicação',
@@ -309,6 +363,8 @@ function gerarMenuCompleto(): NavGroupConfig[] {
         { key: 'account', title: 'Minha Conta', href: paths.dashboard.account, icon: 'user' },
         { key: 'permissoes', title: 'Permissões', href: paths.dashboard.permissoes, icon: 'shield-check' },
       ],
-    },
-  ];
+    }
+  );
+
+  return grupos;
 }

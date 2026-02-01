@@ -14,6 +14,7 @@ import { PackageIcon } from '@phosphor-icons/react/dist/ssr/Package';
 import { PlugsConnectedIcon } from '@phosphor-icons/react/dist/ssr/PlugsConnected';
 import { ProhibitIcon } from '@phosphor-icons/react/dist/ssr/Prohibit';
 import { ScissorsIcon } from '@phosphor-icons/react/dist/ssr/Scissors';
+import { ShieldCheckIcon } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { ShoppingCartIcon } from '@phosphor-icons/react/dist/ssr/ShoppingCart';
 import { StackIcon } from '@phosphor-icons/react/dist/ssr/Stack';
 import { UserIcon } from '@phosphor-icons/react/dist/ssr/User';
@@ -48,4 +49,5 @@ export const navIcons = {
   house: HouseIcon,
   package: PackageIcon,
   prohibit: ProhibitIcon,
+  'shield-check': ShieldCheckIcon,
 } as Record<string, Icon>;

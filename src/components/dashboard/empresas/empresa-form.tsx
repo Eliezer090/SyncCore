@@ -33,9 +33,9 @@ const schema = z.object({
   nome_agente: z.string().nullable().optional(),
   ativo: z.boolean(),
   oferece_delivery: z.boolean(),
-  taxa_entrega_padrao: z.number().min(0),
-  valor_minimo_entrega_gratis: z.number().nullable().optional(),
-  tempo_cancelamento_minutos: z.number().min(0).nullable().optional(),
+  taxa_entrega_padrao: z.coerce.number().min(0).default(0),
+  valor_minimo_entrega_gratis: z.coerce.number().nullable().optional(),
+  tempo_cancelamento_minutos: z.coerce.number().min(0).nullable().optional(),
   url_logo: z.string().nullable().optional(),
   descricao_negocio: z.string().nullable().optional(),
 });
@@ -53,7 +53,7 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     watch,
     reset,
   } = useForm<FormData>({
@@ -73,6 +73,13 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
       descricao_negocio: empresa?.descricao_negocio ?? null,
     },
   });
+
+  // Log de erros de validação para debug
+  React.useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.log('[EmpresaForm] Erros de validação:', errors);
+    }
+  }, [errors]);
 
   // Reset form when empresa changes
   React.useEffect(() => {
