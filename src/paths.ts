@@ -7,7 +7,6 @@ export const paths = {
     account: '/dashboard/account',
     // Entidades Base
     empresas: '/dashboard/empresas',
-    minhaEmpresa: '/dashboard/minha-empresa',
     clientes: '/dashboard/clientes',
     usuarios: '/dashboard/usuarios',
     // Catálogo

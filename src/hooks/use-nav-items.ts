@@ -25,7 +25,6 @@ const recursoToNavItem: Record<string, {
 }> = {
   'dashboard': { title: 'Dashboard', href: paths.dashboard.overview, icon: 'chart-pie', grupo: 'Geral' },
   'empresas': { title: 'Empresas', href: paths.dashboard.empresas, icon: 'buildings', grupo: 'Geral' },
-  'minha-empresa': { title: 'Minha Empresa', href: paths.dashboard.minhaEmpresa, icon: 'buildings', grupo: 'Geral' },
   'clientes': { title: 'Clientes', href: paths.dashboard.clientes, icon: 'users-four', grupo: 'Geral' },
   'usuarios': { title: 'Usuários', href: paths.dashboard.usuarios, icon: 'user-circle', grupo: 'Geral' },
   'enderecos': { title: 'Endereços', href: paths.dashboard.enderecos, icon: 'map-pin', grupo: 'Geral' },
@@ -175,16 +174,16 @@ export function useNavItems(): UseNavItemsReturn {
     // Agrupar por grupo
     const porGrupo: Record<string, { items: NavItemConfig[]; subGrupos: Record<string, NavItemConfig[]> }> = {};
 
-    // Adicionar "Minha Empresa" para gerentes
+    // Adicionar "Empresas" para gerentes (eles verão apenas sua empresa)
     if (user?.papel === 'gerente' && user?.empresa) {
-      const config = recursoToNavItem['minha-empresa'];
+      const config = recursoToNavItem['empresas'];
       if (config) {
         if (!porGrupo[config.grupo]) {
           porGrupo[config.grupo] = { items: [], subGrupos: {} };
         }
         porGrupo[config.grupo].items.push({
-          key: 'minha-empresa',
-          title: config.title,
+          key: 'empresas',
+          title: 'Minha Empresa',
           href: config.href,
           icon: config.icon,
         });

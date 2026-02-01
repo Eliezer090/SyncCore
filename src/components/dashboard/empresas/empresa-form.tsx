@@ -172,9 +172,22 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
                 name="whatsapp_vinculado"
                 control={control}
                 render={({ field }) => (
-                  <FormControl fullWidth>
+                  <FormControl fullWidth error={Boolean(errors.whatsapp_vinculado)}>
                     <InputLabel>WhatsApp Vinculado</InputLabel>
-                    <OutlinedInput {...field} value={field.value || ''} label="WhatsApp Vinculado" />
+                    <OutlinedInput 
+                      {...field} 
+                      value={field.value || ''} 
+                      label="WhatsApp Vinculado"
+                      placeholder="5511999999999"
+                      inputProps={{ inputMode: 'numeric' }}
+                      onChange={(e) => {
+                        // Remove tudo que não for número
+                        const onlyNumbers = e.target.value.replace(/\D/g, '');
+                        field.onChange(onlyNumbers);
+                      }}
+                    />
+                    {errors.whatsapp_vinculado && <FormHelperText>{errors.whatsapp_vinculado.message}</FormHelperText>}
+                    <FormHelperText>Apenas números (código do país + DDD + número)</FormHelperText>
                   </FormControl>
                 )}
               />

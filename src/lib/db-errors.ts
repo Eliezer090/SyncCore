@@ -20,6 +20,7 @@ const constraintMessages: Record<string, string> = {
   // Empresas
   'empresas_pkey': 'Esta empresa já existe',
   'empresas_cnpj_key': 'Este CNPJ já está cadastrado',
+  'empresas_whatsapp_vinculado_key': 'Este WhatsApp Vinculado já está em uso por outra empresa',
   
   // Clientes
   'clientes_telefone_key': 'Este telefone já está cadastrado',
@@ -98,6 +99,7 @@ const fieldTranslations: Record<string, string> = {
   'empresa_id': 'empresa',
   'cliente_id': 'cliente',
   'usuario_id': 'usuário/profissional',
+  'whatsapp_vinculado': 'WhatsApp Vinculado',
   'categoria_id': 'categoria',
   'produto_id': 'produto',
   'servico_id': 'serviço',

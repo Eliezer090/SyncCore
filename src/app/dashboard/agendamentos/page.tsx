@@ -280,6 +280,7 @@ export default function AgendamentosPage(): React.JSX.Element {
   
   // Estados para gerenciar serviços do agendamento
   const [servicosAgendamento, setServicosAgendamento] = React.useState<(AgendamentoServico & { servico_nome?: string })[]>([]);
+  const [servicosPendentes, setServicosPendentes] = React.useState<{ servico_id: number; servico_nome: string; duracao_minutos: number; preco: number }[]>([]);
   const [loadingServicos, setLoadingServicos] = React.useState(false);
   const [selectedServicoId, setSelectedServicoId] = React.useState<number>(0);
   const [servicoDuracao, setServicoDuracao] = React.useState<number>(30);
@@ -383,29 +384,50 @@ export default function AgendamentosPage(): React.JSX.Element {
   };
 
   const handleAddServico = async () => {
-    if (!selectedAgendamento || !selectedServicoId) return;
+    if (!selectedServicoId) return;
     
-    try {
-      const response = await fetch('/api/agendamento-servicos', {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agendamento_id: selectedAgendamento.id,
+    // Se é um agendamento existente, salva no banco
+    if (selectedAgendamento) {
+      try {
+        const response = await fetch('/api/agendamento-servicos', {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agendamento_id: selectedAgendamento.id,
+            servico_id: selectedServicoId,
+            duracao_minutos: servicoDuracao,
+            preco: servicoPreco,
+          }),
+        });
+        
+        if (response.ok) {
+          await fetchServicosAgendamento(selectedAgendamento.id);
+          setSelectedServicoId(0);
+          setServicoDuracao(30);
+          setServicoPreco(0);
+        }
+      } catch (error) {
+        console.error('Erro ao adicionar serviço:', error);
+      }
+    } else {
+      // Se é novo agendamento, adiciona à lista pendente
+      const servicoSelecionado = servicos.find(s => s.id === selectedServicoId);
+      if (servicoSelecionado) {
+        setServicosPendentes(prev => [...prev, {
           servico_id: selectedServicoId,
+          servico_nome: servicoSelecionado.nome,
           duracao_minutos: servicoDuracao,
           preco: servicoPreco,
-        }),
-      });
-      
-      if (response.ok) {
-        await fetchServicosAgendamento(selectedAgendamento.id);
+        }]);
         setSelectedServicoId(0);
         setServicoDuracao(30);
         setServicoPreco(0);
       }
-    } catch (error) {
-      console.error('Erro ao adicionar serviço:', error);
     }
+  };
+
+  const handleRemoveServicoPendente = (servicoId: number) => {
+    setServicosPendentes(prev => prev.filter(s => s.servico_id !== servicoId));
   };
 
   const handleRemoveServico = async (servicoId: number) => {
@@ -463,6 +485,7 @@ export default function AgendamentosPage(): React.JSX.Element {
     setSelectedServicoId(0);
     setServicoDuracao(30);
     setServicoPreco(0);
+    setServicosPendentes([]);
     
     setDialogOpen(true);
   };
@@ -479,7 +502,29 @@ export default function AgendamentosPage(): React.JSX.Element {
       const url = selectedAgendamento ? `/api/agendamentos/${selectedAgendamento.id}` : '/api/agendamentos';
       const method = selectedAgendamento ? 'PUT' : 'POST';
       const response = await fetch(url, { method, headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-      if (response.ok) { handleCloseDialog(); fetchAgendamentos(); }
+      
+      if (response.ok) {
+        const savedAgendamento = await response.json();
+        
+        // Se é novo agendamento e tem serviços pendentes, salvar
+        if (!selectedAgendamento && servicosPendentes.length > 0) {
+          for (const servico of servicosPendentes) {
+            await fetch('/api/agendamento-servicos', {
+              method: 'POST',
+              headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                agendamento_id: savedAgendamento.id,
+                servico_id: servico.servico_id,
+                duracao_minutos: servico.duracao_minutos,
+                preco: servico.preco,
+              }),
+            });
+          }
+        }
+        
+        handleCloseDialog();
+        fetchAgendamentos();
+      }
     } catch (error) {
       console.error('Erro ao salvar agendamento:', error);
     } finally {
@@ -844,108 +889,159 @@ export default function AgendamentosPage(): React.JSX.Element {
                       </Grid>
                     )}
                     
-                    {/* Seção de Serviços - só exibe para agendamentos existentes */}
-                    {selectedAgendamento && (
-                      <Grid size={12}>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                          Serviços do Agendamento
-                        </Typography>
-                        
-                        {/* Lista de serviços vinculados */}
-                        {loadingServicos ? (
-                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                            <CircularProgress size={24} />
-                          </Box>
-                        ) : servicosAgendamento.length > 0 ? (
-                          <List dense sx={{ mb: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                            {servicosAgendamento.map((sa) => (
-                              <ListItem key={sa.id} divider>
-                                <ListItemText
-                                  primary={sa.servico_nome}
-                                  secondary={`Duração: ${sa.duracao_minutos}min | Preço: R$ ${Number(sa.preco || 0).toFixed(2)}`}
-                                />
-                                <ListItemSecondaryAction>
-                                  <Tooltip title="Remover serviço">
-                                    <IconButton
-                                      edge="end"
-                                      size="small"
-                                      color="error"
-                                      onClick={() => handleRemoveServico(sa.servico_id)}
-                                    >
-                                      <XIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                </ListItemSecondaryAction>
-                              </ListItem>
-                            ))}
-                          </List>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Nenhum serviço vinculado a este agendamento.
-                          </Typography>
-                        )}
-                        
-                        {/* Formulário para adicionar novo serviço */}
-                        <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
-                          Adicionar Serviço
-                        </Typography>
-                        <Grid container spacing={2}>
-                          <Grid size={{ xs: 12, sm: 4 }}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Serviço</InputLabel>
-                              <Select
-                                value={selectedServicoId}
-                                onChange={(e) => setSelectedServicoId(Number(e.target.value))}
-                                label="Serviço"
-                              >
-                                <MenuItem value={0}>Selecione...</MenuItem>
-                                {servicos
-                                  .filter((s) => !servicosAgendamento.some((sa) => sa.servico_id === s.id))
-                                  .map((s) => (
-                                    <MenuItem key={s.id} value={s.id}>{s.nome}</MenuItem>
-                                  ))}
-                              </Select>
-                            </FormControl>
-                          </Grid>
-                          <Grid size={{ xs: 6, sm: 3 }}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Duração (min)</InputLabel>
-                              <OutlinedInput
-                                type="number"
-                                value={servicoDuracao}
-                                onChange={(e) => setServicoDuracao(Number(e.target.value))}
-                                label="Duração (min)"
-                              />
-                            </FormControl>
-                          </Grid>
-                          <Grid size={{ xs: 6, sm: 3 }}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Preço (R$)</InputLabel>
-                              <OutlinedInput
-                                type="number"
-                                value={servicoPreco}
-                                onChange={(e) => setServicoPreco(Number(e.target.value))}
-                                label="Preço (R$)"
-                                inputProps={{ step: '0.01' }}
-                              />
-                            </FormControl>
-                          </Grid>
-                          <Grid size={{ xs: 12, sm: 2 }} sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<PlusIcon />}
-                              onClick={handleAddServico}
-                              disabled={!selectedServicoId}
-                              fullWidth
+                    {/* Seção de Serviços - exibe tanto para novo quanto para edição */}
+                    <Grid size={12}>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                        Serviços do Agendamento
+                      </Typography>
+                      
+                      {/* Lista de serviços - agendamento existente */}
+                      {selectedAgendamento && (
+                        <>
+                          {loadingServicos ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                              <CircularProgress size={24} />
+                            </Box>
+                          ) : servicosAgendamento.length > 0 ? (
+                            <List dense sx={{ mb: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                              {servicosAgendamento.map((sa) => (
+                                <ListItem key={sa.id} divider>
+                                  <ListItemText
+                                    primary={sa.servico_nome}
+                                    secondary={`Duração: ${sa.duracao_minutos}min | Preço: R$ ${Number(sa.preco || 0).toFixed(2)}`}
+                                  />
+                                  <ListItemSecondaryAction>
+                                    <Tooltip title="Remover serviço">
+                                      <IconButton
+                                        edge="end"
+                                        size="small"
+                                        color="error"
+                                        onClick={() => handleRemoveServico(sa.servico_id)}
+                                      >
+                                        <XIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </ListItemSecondaryAction>
+                                </ListItem>
+                              ))}
+                            </List>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Nenhum serviço vinculado a este agendamento.
+                            </Typography>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Lista de serviços pendentes - novo agendamento */}
+                      {!selectedAgendamento && (
+                        <>
+                          {servicosPendentes.length > 0 ? (
+                            <List dense sx={{ mb: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                              {servicosPendentes.map((sp, index) => (
+                                <ListItem key={`pending-${sp.servico_id}-${index}`} divider>
+                                  <ListItemText
+                                    primary={sp.servico_nome}
+                                    secondary={`Duração: ${sp.duracao_minutos}min | Preço: R$ ${Number(sp.preco || 0).toFixed(2)}`}
+                                  />
+                                  <ListItemSecondaryAction>
+                                    <Tooltip title="Remover serviço">
+                                      <IconButton
+                                        edge="end"
+                                        size="small"
+                                        color="error"
+                                        onClick={() => handleRemoveServicoPendente(sp.servico_id)}
+                                      >
+                                        <XIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </ListItemSecondaryAction>
+                                </ListItem>
+                              ))}
+                            </List>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Adicione os serviços deste agendamento.
+                            </Typography>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Formulário para adicionar novo serviço */}
+                      <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
+                        Adicionar Serviço
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Serviço</InputLabel>
+                            <Select
+                              value={selectedServicoId}
+                              onChange={(e) => {
+                                const id = Number(e.target.value);
+                                setSelectedServicoId(id);
+                                // Auto-preencher duração e preço do serviço selecionado
+                                const servico = servicos.find(s => s.id === id);
+                                if (servico) {
+                                  setServicoDuracao((servico as unknown as { duracao_minutos?: number }).duracao_minutos || 30);
+                                  setServicoPreco((servico as unknown as { preco?: number }).preco || 0);
+                                }
+                              }}
+                              label="Serviço"
                             >
-                              Adicionar
-                            </Button>
-                          </Grid>
+                              <MenuItem value={0}>Selecione...</MenuItem>
+                              {servicos
+                                .filter((s) => {
+                                  // Filtrar serviços já adicionados
+                                  if (selectedAgendamento) {
+                                    return !servicosAgendamento.some((sa) => sa.servico_id === s.id);
+                                  }
+                                  return !servicosPendentes.some((sp) => sp.servico_id === s.id);
+                                })
+                                .map((s) => (
+                                  <MenuItem key={s.id} value={s.id}>{s.nome}</MenuItem>
+                                ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Duração (min)</InputLabel>
+                            <OutlinedInput
+                              type="number"
+                              value={servicoDuracao}
+                              onChange={(e) => setServicoDuracao(Number(e.target.value))}
+                              label="Duração (min)"
+                            />
+                          </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel>Preço (R$)</InputLabel>
+                            <OutlinedInput
+                              type="number"
+                              value={servicoPreco}
+                              onChange={(e) => setServicoPreco(Number(e.target.value))}
+                              label="Preço (R$)"
+                              inputProps={{ step: '0.01' }}
+                            />
+                          </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 2 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<PlusIcon />}
+                            onClick={handleAddServico}
+                            disabled={!selectedServicoId}
+                            fullWidth
+                          >
+                            Adicionar
+                          </Button>
                         </Grid>
                       </Grid>
-                    )}
+                    </Grid>
                   </Grid>
                 </CardContent>
                 <Divider />

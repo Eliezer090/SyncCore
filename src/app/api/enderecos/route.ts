@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = page * limit;
     const clienteId = searchParams.get('cliente_id');
+    const empresaIdParam = searchParams.get('empresa_id');
 
     let whereClause = '';
     const params: (string | number)[] = [];
@@ -31,8 +32,14 @@ export async function GET(request: NextRequest) {
       paramIndex++;
     }
     
-    // Filtrar por empresa (obrigatório para não-admin_global, ou se admin selecionou uma empresa)
-    if (empresaIdFiltro !== null) {
+    // Filtrar por empresa_id específico (ex: buscar endereço de uma empresa)
+    if (empresaIdParam) {
+      whereClause += whereClause ? ` AND e.empresa_id = $${paramIndex}` : ` WHERE e.empresa_id = $${paramIndex}`;
+      params.push(empresaIdParam);
+      paramIndex++;
+    }
+    // Ou filtrar por empresa do usuário (obrigatório para não-admin_global)
+    else if (empresaIdFiltro !== null) {
       whereClause += whereClause ? ` AND e.empresa_id = $${paramIndex}` : ` WHERE e.empresa_id = $${paramIndex}`;
       params.push(empresaIdFiltro);
       paramIndex++;

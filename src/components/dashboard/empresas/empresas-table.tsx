@@ -17,6 +17,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
 import { TrashIcon } from '@phosphor-icons/react/dist/ssr/Trash';
+import { MapPinIcon } from '@phosphor-icons/react/dist/ssr/MapPin';
 import dayjs from 'dayjs';
 
 import type { Empresa } from '@/types/database';
@@ -31,6 +32,7 @@ interface EmpresasTableProps {
   onRowsPerPageChange?: (rowsPerPage: number) => void;
   onEdit?: (empresa: Empresa) => void;
   onDelete?: (id: number) => void;
+  onEndereco?: (empresa: Empresa) => void;
 }
 
 export function EmpresasTable({
@@ -42,6 +44,7 @@ export function EmpresasTable({
   onRowsPerPageChange,
   onEdit,
   onDelete,
+  onEndereco,
 }: EmpresasTableProps): React.JSX.Element {
   const rowIds = React.useMemo(() => rows.map((empresa) => empresa.id.toString()), [rows]);
   const { selectAll, deselectAll, selectOne, deselectOne, selected } = useSelection(rowIds);
@@ -137,6 +140,11 @@ export function EmpresasTable({
                   </TableCell>
                   <TableCell>{dayjs(row.criado_em).format('DD/MM/YYYY HH:mm')}</TableCell>
                   <TableCell align="right">
+                    <Tooltip title="Endereço">
+                      <IconButton onClick={() => onEndereco?.(row)}>
+                        <MapPinIcon />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Editar">
                       <IconButton onClick={() => onEdit?.(row)}>
                         <PencilSimpleIcon />

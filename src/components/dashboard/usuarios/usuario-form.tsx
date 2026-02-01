@@ -24,7 +24,7 @@ import type { Usuario, Empresa } from '@/types/database';
 import { useUser } from '@/hooks/use-user';
 
 const schema = z.object({
-  empresa_id: z.number().nullable().optional(),
+  empresa_id: z.coerce.number().nullable().optional(),
   nome: z.string().min(1, 'Nome é obrigatório'),
   email: z.string().email('Email inválido'),
   senha_hash: z.string().optional(),
