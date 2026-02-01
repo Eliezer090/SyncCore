@@ -74,6 +74,30 @@ const canceladoPorOptions = [
   { value: 'sistema', label: 'Sistema' },
 ];
 
+// Paleta de cores para profissionais (cores vibrantes e distinguíveis)
+const profissionalColors = [
+  '#2196F3', // Azul
+  '#4CAF50', // Verde
+  '#9C27B0', // Roxo
+  '#FF9800', // Laranja
+  '#E91E63', // Rosa
+  '#00BCD4', // Ciano
+  '#795548', // Marrom
+  '#607D8B', // Cinza azulado
+  '#F44336', // Vermelho
+  '#3F51B5', // Índigo
+  '#009688', // Teal
+  '#CDDC39', // Lima
+  '#FF5722', // Laranja escuro
+  '#673AB7', // Roxo profundo
+  '#8BC34A', // Verde claro
+];
+
+// Função para gerar cor baseada no ID do profissional
+function getProfissionalColor(profissionalId: number): string {
+  return profissionalColors[profissionalId % profissionalColors.length];
+}
+
 const schema = z.object({
   empresa_id: z.coerce.number().min(1, 'Empresa é obrigatória'),
   cliente_id: z.coerce.number().min(1, 'Cliente é obrigatório'),
@@ -206,10 +230,18 @@ function CustomToolbar({ label, onNavigate, onView, view }: RBCToolbarProps<Cale
 // Componente de evento customizado
 function EventComponent({ event }: { event: CalendarEvent }) {
   const status = statusOptions.find(s => s.value === event.resource.status);
+  const profissionalColor = getProfissionalColor(event.resource.usuario_id);
+  
+  // Se cancelado, usa cor cinza; senão usa cor do profissional
+  const bgColor = event.resource.status === 'cancelado' ? '#9e9e9e' : profissionalColor;
+  
+  // Indicador de status no canto (pequeno círculo colorido)
+  const statusIndicatorColor = status?.color || '#1976d2';
+  
   return (
     <Box
       sx={{
-        bgcolor: status?.color || '#1976d2',
+        bgcolor: bgColor,
         color: 'white',
         p: 0.5,
         borderRadius: 1,
@@ -218,6 +250,8 @@ function EventComponent({ event }: { event: CalendarEvent }) {
         overflow: 'hidden',
         height: '100%',
         cursor: 'pointer',
+        position: 'relative',
+        borderLeft: `4px solid ${statusIndicatorColor}`,
         '&:hover': {
           opacity: 0.9,
         },
@@ -561,6 +595,33 @@ export default function AgendamentosPage(): React.JSX.Element {
                 ))}
               </Stack>
             </Paper>
+
+            {/* Legenda de profissionais */}
+            {profissionais.length > 0 && (
+              <Paper sx={{ p: 2, mt: 2, maxHeight: 300, overflow: 'auto' }}>
+                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                  Profissionais
+                </Typography>
+                <Stack spacing={1}>
+                  {profissionais.map((prof) => (
+                    <Stack key={prof.id} direction="row" alignItems="center" spacing={1}>
+                      <Box 
+                        sx={{ 
+                          width: 12, 
+                          height: 12, 
+                          borderRadius: '50%', 
+                          bgcolor: getProfissionalColor(prof.id),
+                          flexShrink: 0,
+                        }} 
+                      />
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
+                        {prof.nome}
+                      </Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
           </Box>
 
           {/* Calendário principal */}
