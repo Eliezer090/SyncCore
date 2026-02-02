@@ -31,6 +31,7 @@ import { LinkSimple as LinkIcon } from '@phosphor-icons/react/dist/ssr/LinkSimpl
 import type { Empresa } from '@/types/database';
 import { ImageUpload } from '@/components/core/image-upload';
 import { WhatsAppQRDialog } from './whatsapp-qr-dialog';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
@@ -40,7 +41,7 @@ const schema = z.object({
   nome_agente: z.string().nullable().optional(),
   ativo: z.boolean(),
   oferece_delivery: z.boolean(),
-  taxa_entrega_padrao: z.coerce.number().min(0).default(0),
+  taxa_entrega_padrao: z.coerce.number().min(0),
   valor_minimo_entrega_gratis: z.coerce.number().nullable().optional(),
   tempo_cancelamento_minutos: z.coerce.number().min(0).nullable().optional(),
   url_logo: z.string().nullable().optional(),
@@ -93,9 +94,8 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
       
       setCheckingConnection(true);
       try {
-        const token = localStorage.getItem('auth-token');
         const response = await fetch(`/api/evolution?empresa_id=${empresa.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: getAuthHeaders(),
         });
         const data = await response.json();
         setIsWhatsappConnected(data.connected === true);

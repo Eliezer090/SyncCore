@@ -15,6 +15,7 @@ import Chip from '@mui/material/Chip';
 import { CheckCircle as CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { WhatsappLogo as WhatsAppIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
 import { Warning as WarningIcon } from '@phosphor-icons/react/dist/ssr/Warning';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 interface QRCodeData {
   base64?: string;
@@ -45,14 +46,6 @@ export function WhatsAppQRDialog({
   const [phoneNumber, setPhoneNumber] = React.useState<string | null>(null);
   const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // Função para obter token do localStorage
-  const getToken = (): string | null => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth-token');
-    }
-    return null;
-  };
-
   // Iniciar conexão
   const startConnection = React.useCallback(async () => {
     setStatus('loading');
@@ -60,12 +53,11 @@ export function WhatsAppQRDialog({
     setQrCode(null);
 
     try {
-      const token = getToken();
       const response = await fetch('/api/evolution', {
         method: 'POST',
         headers: {
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ empresa_id: empresaId }),
       });
@@ -100,13 +92,10 @@ export function WhatsAppQRDialog({
 
     const checkConnection = async () => {
       try {
-        const token = getToken();
         const response = await fetch(
           `/api/evolution/qrcode?empresa_id=${empresaId}&action=status`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: getAuthHeaders(),
           }
         );
 
@@ -141,12 +130,11 @@ export function WhatsAppQRDialog({
   // Confirmar conexão e salvar número
   const confirmConnection = async () => {
     try {
-      const token = getToken();
       const response = await fetch('/api/evolution/qrcode', {
         method: 'PUT',
         headers: {
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ empresa_id: empresaId }),
       });
@@ -167,13 +155,10 @@ export function WhatsAppQRDialog({
     setStatus('loading');
     
     try {
-      const token = getToken();
       const response = await fetch(
         `/api/evolution/qrcode?empresa_id=${empresaId}&action=qrcode`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: getAuthHeaders(),
         }
       );
 
