@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, execute } from '@/lib/db';
 import type { ExpedienteProfissional } from '@/types/database';
+import { getAuthUser } from '@/lib/auth/middleware';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const result = await query<ExpedienteProfissional & { profissional_nome?: string }>(`
       SELECT ep.*, u.nome as profissional_nome
@@ -25,6 +32,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const {
@@ -96,6 +109,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     await execute('DELETE FROM expediente_profissional WHERE id = $1', [id]);
     return NextResponse.json({ message: 'Expediente excluído com sucesso' });

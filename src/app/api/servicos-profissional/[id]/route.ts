@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryOne, execute } from '@/lib/db';
 import type { ServicoProfissional } from '@/types/database';
+import { getAuthUser } from '@/lib/auth/middleware';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const vinculo = await queryOne<ServicoProfissional>(`SELECT * FROM servicos_profissional WHERE id = $1`, [id]);
     if (!vinculo) return NextResponse.json({ error: 'Vínculo não encontrado' }, { status: 404 });
@@ -16,6 +23,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { usuario_id, servico_id, duracao_minutos, preco, ativo, antecedencia_minima_minutos } = body;
@@ -35,6 +48,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const rowCount = await execute('DELETE FROM servicos_profissional WHERE id = $1', [id]);
     if (rowCount === 0) return NextResponse.json({ error: 'Vínculo não encontrado' }, { status: 404 });

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryOne, execute } from '@/lib/db';
 import type { BloqueioProfissional } from '@/types/database';
+import { getAuthUser } from '@/lib/auth/middleware';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const bloqueio = await queryOne<BloqueioProfissional>(`SELECT * FROM bloqueios_profissional WHERE id = $1`, [id]);
     if (!bloqueio) return NextResponse.json({ error: 'Bloqueio não encontrado' }, { status: 404 });
@@ -16,6 +23,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { usuario_id, inicio, fim, motivo, dia_semana_recorrente } = body;
@@ -35,6 +48,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const { id } = await params;
     const rowCount = await execute('DELETE FROM bloqueios_profissional WHERE id = $1', [id]);
     if (rowCount === 0) return NextResponse.json({ error: 'Bloqueio não encontrado' }, { status: 404 });

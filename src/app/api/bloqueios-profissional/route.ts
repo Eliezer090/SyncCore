@@ -1,32 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { BloqueioProfissional } from '@/types/database';
+import { getAuthUser, getEmpresaIdParaQuery } from '@/lib/auth/middleware';
 
 export async function GET(request: NextRequest) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
+    // Obter empresa_id do token
+    const empresaIdFiltro = getEmpresaIdParaQuery(user);
+
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '0');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = page * limit;
     const usuarioId = searchParams.get('usuario_id');
 
-    let whereClause = '';
+    let whereClause = ' WHERE 1=1';
     const params: (string | number)[] = [];
     let paramIndex = 1;
 
+    // Filtrar por empresa (através do usuário)
+    if (empresaIdFiltro !== null) {
+      whereClause += ` AND u.empresa_id = $${paramIndex}`;
+      params.push(empresaIdFiltro);
+      paramIndex++;
+    }
+
     if (usuarioId) {
-      whereClause = ` WHERE bp.usuario_id = $${paramIndex}`;
+      whereClause += ` AND bp.usuario_id = $${paramIndex}`;
       params.push(usuarioId);
       paramIndex++;
     }
 
-    const countResult = await query<{ count: string }>(`SELECT COUNT(*) as count FROM bloqueios_profissional bp ${whereClause}`, params);
+    const countResult = await query<{ count: string }>(`
+      SELECT COUNT(*) as count 
+      FROM bloqueios_profissional bp 
+      JOIN usuarios u ON bp.usuario_id = u.id
+      ${whereClause}
+    `, params);
     const total = parseInt(countResult[0].count);
 
     const data = await query<BloqueioProfissional & { profissional_nome?: string }>(`
       SELECT bp.*, u.nome as profissional_nome
       FROM bloqueios_profissional bp
-      LEFT JOIN usuarios u ON bp.usuario_id = u.id
+      JOIN usuarios u ON bp.usuario_id = u.id
       ${whereClause}
       ORDER BY bp.inicio DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -41,6 +63,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verificar autenticação
+    const { user, error } = getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { usuario_id, inicio, fim, motivo, dia_semana_recorrente } = body;
 
