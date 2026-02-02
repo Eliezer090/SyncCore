@@ -21,9 +21,16 @@ import MenuItem from '@mui/material/MenuItem';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Select from '@mui/material/Select';
 import Switch from '@mui/material/Switch';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import CircularProgress from '@mui/material/CircularProgress';
+import { WhatsappLogo as WhatsAppIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
+import { CheckCircle as CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { LinkSimple as LinkIcon } from '@phosphor-icons/react/dist/ssr/LinkSimple';
 
 import type { Empresa } from '@/types/database';
 import { ImageUpload } from '@/components/core/image-upload';
+import { WhatsAppQRDialog } from './whatsapp-qr-dialog';
 
 const schema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
@@ -50,12 +57,17 @@ interface EmpresaFormProps {
 }
 
 export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFormProps): React.JSX.Element {
+  const [whatsappDialogOpen, setWhatsappDialogOpen] = React.useState(false);
+  const [checkingConnection, setCheckingConnection] = React.useState(false);
+  const [isWhatsappConnected, setIsWhatsappConnected] = React.useState(false);
+
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
     watch,
     reset,
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -73,6 +85,29 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
       descricao_negocio: empresa?.descricao_negocio ?? null,
     },
   });
+
+  // Verificar status da conexão WhatsApp ao carregar
+  React.useEffect(() => {
+    const checkWhatsAppConnection = async () => {
+      if (!empresa?.id) return;
+      
+      setCheckingConnection(true);
+      try {
+        const token = localStorage.getItem('auth-token');
+        const response = await fetch(`/api/evolution?empresa_id=${empresa.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        setIsWhatsappConnected(data.connected === true);
+      } catch (err) {
+        console.error('[EmpresaForm] Erro ao verificar WhatsApp:', err);
+      } finally {
+        setCheckingConnection(false);
+      }
+    };
+
+    checkWhatsAppConnection();
+  }, [empresa?.id]);
 
   // Log de erros de validação para debug
   React.useEffect(() => {
@@ -100,6 +135,13 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
   }, [empresa, reset]);
 
   const oferece_delivery = watch('oferece_delivery');
+  const nomeEmpresa = watch('nome');
+
+  // Handler quando WhatsApp é conectado
+  const handleWhatsAppConnected = (phoneNumber: string) => {
+    setValue('whatsapp_vinculado', phoneNumber);
+    setIsWhatsappConnected(true);
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -185,9 +227,46 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
                         const onlyNumbers = e.target.value.replace(/\D/g, '');
                         field.onChange(onlyNumbers);
                       }}
+                      endAdornment={
+                        <InputAdornment position="end">
+                          {checkingConnection ? (
+                            <CircularProgress size={20} />
+                          ) : empresa?.id ? (
+                            <Tooltip title={isWhatsappConnected ? 'WhatsApp conectado' : 'Conectar WhatsApp'}>
+                              <IconButton
+                                onClick={() => setWhatsappDialogOpen(true)}
+                                edge="end"
+                                sx={{
+                                  color: isWhatsappConnected ? '#25D366' : 'text.secondary',
+                                  '&:hover': { color: '#25D366' },
+                                }}
+                              >
+                                {isWhatsappConnected ? (
+                                  <CheckCircleIcon size={24} weight="fill" />
+                                ) : (
+                                  <WhatsAppIcon size={24} weight="fill" />
+                                )}
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="Salve a empresa primeiro para conectar o WhatsApp">
+                              <span>
+                                <IconButton edge="end" disabled>
+                                  <LinkIcon size={24} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )}
+                        </InputAdornment>
+                      }
                     />
                     {errors.whatsapp_vinculado && <FormHelperText>{errors.whatsapp_vinculado.message}</FormHelperText>}
-                    <FormHelperText>Apenas números (código do país + DDD + número)</FormHelperText>
+                    <FormHelperText>
+                      {empresa?.id 
+                        ? 'Clique no ícone do WhatsApp para conectar via QR Code' 
+                        : 'Salve a empresa para conectar o WhatsApp'
+                      }
+                    </FormHelperText>
                   </FormControl>
                 )}
               />
@@ -324,6 +403,17 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
           </Button>
         </CardActions>
       </Card>
+
+      {/* Dialog para conectar WhatsApp */}
+      {empresa?.id && (
+        <WhatsAppQRDialog
+          open={whatsappDialogOpen}
+          onClose={() => setWhatsappDialogOpen(false)}
+          empresaId={empresa.id}
+          empresaNome={nomeEmpresa || empresa.nome}
+          onConnected={handleWhatsAppConnected}
+        />
+      )}
     </form>
   );
 }
