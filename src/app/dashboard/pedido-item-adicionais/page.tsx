@@ -35,6 +35,7 @@ import { z } from 'zod';
 
 import type { PedidoItemAdicional, PedidoItem, ProdutoAdicional } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   pedido_item_id: z.coerce.number().min(1, 'Item do pedido é obrigatório'),
@@ -64,7 +65,7 @@ export default function PedidoItemAdicionaisPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/pedido-item-adicionais?${params}`);
+      const response = await fetch(`/api/pedido-item-adicionais?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setVinculacoes(data.data || []);
       setTotal(data.total || 0);
@@ -77,7 +78,7 @@ export default function PedidoItemAdicionaisPage(): React.JSX.Element {
 
   const fetchPedidoItens = async () => {
     try {
-      const response = await fetch('/api/pedido-itens?limit=1000');
+      const response = await fetch('/api/pedido-itens?limit=1000', { headers: getAuthHeaders() });
       const data = await response.json();
       setPedidoItens(data.data || []);
     } catch (error) {
@@ -87,7 +88,7 @@ export default function PedidoItemAdicionaisPage(): React.JSX.Element {
 
   const fetchAdicionais = async () => {
     try {
-      const response = await fetch('/api/produto-adicionais?limit=1000');
+      const response = await fetch('/api/produto-adicionais?limit=1000', { headers: getAuthHeaders() });
       const data = await response.json();
       setAdicionais(data.data || []);
     } catch (error) {
@@ -115,7 +116,7 @@ export default function PedidoItemAdicionaisPage(): React.JSX.Element {
     try {
       const response = await fetch('/api/pedido-item-adicionais', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       if (response.ok) { handleCloseDialog(); fetchVinculacoes(); }
@@ -129,7 +130,7 @@ export default function PedidoItemAdicionaisPage(): React.JSX.Element {
   const handleDelete = async (pedidoItemId: number, adicionalId: number) => {
     if (!confirm('Tem certeza que deseja remover este adicional do item?')) return;
     try {
-      const response = await fetch(`/api/pedido-item-adicionais?pedido_item_id=${pedidoItemId}&adicional_id=${adicionalId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/pedido-item-adicionais?pedido_item_id=${pedidoItemId}&adicional_id=${adicionalId}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) fetchVinculacoes();
     } catch (error) {
       console.error('Erro ao excluir vinculação:', error);

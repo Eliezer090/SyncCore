@@ -24,6 +24,7 @@ import Button from '@mui/material/Button';
 
 import type { HistoricoConversa } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 export default function HistoricoConversasPage(): React.JSX.Element {
   const [historico, setHistorico] = React.useState<HistoricoConversa[]>([]);
@@ -38,7 +39,7 @@ export default function HistoricoConversasPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/historico-conversas?${params}`);
+      const response = await fetch(`/api/historico-conversas?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setHistorico(data.data || []);
       setTotal(data.total || 0);
@@ -56,7 +57,7 @@ export default function HistoricoConversasPage(): React.JSX.Element {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este registro?')) return;
     try {
-      const response = await fetch(`/api/historico-conversas/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/historico-conversas/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) { fetchHistorico(); }
     } catch (error) {
       console.error('Erro ao excluir registro:', error);

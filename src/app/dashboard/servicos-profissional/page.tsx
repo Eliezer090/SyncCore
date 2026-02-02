@@ -70,10 +70,12 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [selectedVinculo, setSelectedVinculo] = React.useState<ServicoProfissional | null>(null);
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { usuario_id: 0, servico_id: 0, duracao_minutos: 30, preco: null, ativo: true, antecedencia_minima_minutos: 30 },
   });
+
+  const watchUsuarioId = watch('usuario_id');
 
   const fetchVinculos = React.useCallback(async () => {
     setLoadingData(true);
@@ -124,6 +126,23 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
   }, [empresaId]);
 
   React.useEffect(() => { fetchVinculos(); fetchProfissionais(); fetchServicos(); }, [fetchVinculos, fetchProfissionais, fetchServicos]);
+
+  // Filtra serviços já vinculados ao profissional selecionado (exceto se estiver editando)
+  const getServicosDisponiveis = React.useCallback((profissionalId: number) => {
+    if (!profissionalId) return servicos;
+    // Se está editando, permite manter o serviço atual
+    if (selectedVinculo) {
+      const servicosJaVinculados = vinculos
+        .filter(v => v.usuario_id === profissionalId && v.servico_id !== selectedVinculo.servico_id)
+        .map(v => v.servico_id);
+      return servicos.filter(s => !servicosJaVinculados.includes(s.id));
+    }
+    // Se está criando novo, filtra todos os já vinculados
+    const servicosJaVinculados = vinculos
+      .filter(v => v.usuario_id === profissionalId)
+      .map(v => v.servico_id);
+    return servicos.filter(s => !servicosJaVinculados.includes(s.id));
+  }, [servicos, vinculos, selectedVinculo]);
 
   const handleOpenDialog = (vinculo?: ServicoProfissional) => {
     setSelectedVinculo(vinculo || null);
@@ -239,9 +258,11 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
                     )} />
                   </Grid>
                   <Grid size={12}>
-                    <Controller name="servico_id" control={control} render={({ field }) => (
+                    <Controller name="servico_id" control={control} render={({ field }) => {
+                      const servicosDisponiveis = getServicosDisponiveis(watchUsuarioId);
+                      return (
                       <Autocomplete
-                        options={servicos}
+                        options={servicosDisponiveis}
                         getOptionLabel={(option) => option.nome}
                         value={servicos.find(s => s.id === field.value) || null}
                         onChange={(_, newValue) => field.onChange(newValue?.id || 0)}
@@ -251,12 +272,12 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
                             {...params} 
                             label="Serviço" 
                             error={Boolean(errors.servico_id)} 
-                            helperText={errors.servico_id?.message}
+                            helperText={errors.servico_id?.message || (servicosDisponiveis.length === 0 ? 'Todos os serviços já foram adicionados' : '')}
                           />
                         )}
-                        noOptionsText="Nenhum serviço encontrado"
+                        noOptionsText="Todos os serviços já foram adicionados a este profissional"
                       />
-                    )} />
+                    )}} />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Controller name="duracao_minutos" control={control} render={({ field }) => (

@@ -150,7 +150,7 @@ export default function ProdutosPage(): React.JSX.Element {
 
   const fetchProdutoImagens = async (produtoId: number) => {
     try {
-      const response = await fetch(`/api/produto-imagens?produto_id=${produtoId}`);
+      const response = await fetch(`/api/produto-imagens?produto_id=${produtoId}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setProdutoImagens(data.data || []);
     } catch (error) {
@@ -165,7 +165,7 @@ export default function ProdutosPage(): React.JSX.Element {
       try {
         const response = await fetch('/api/produto-imagens', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
             produto_id: selectedProduto.id,
             url,
@@ -213,7 +213,7 @@ export default function ProdutosPage(): React.JSX.Element {
 
   const handleRemoveImagem = async (id: number) => {
     try {
-      const response = await fetch(`/api/produto-imagens/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/produto-imagens/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok && selectedProduto) {
         await fetchProdutoImagens(selectedProduto.id);
       }
@@ -226,7 +226,7 @@ export default function ProdutosPage(): React.JSX.Element {
     try {
       const response = await fetch(`/api/produto-imagens/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_capa: true }),
       });
       if (response.ok && selectedProduto) {
@@ -273,7 +273,7 @@ export default function ProdutosPage(): React.JSX.Element {
     try {
       const url = selectedProduto ? `/api/produtos/${selectedProduto.id}` : '/api/produtos';
       const method = selectedProduto ? 'PUT' : 'POST';
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const response = await fetch(url, { method, headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (response.ok) {
         const savedProduto = await response.json();
         
@@ -282,7 +282,7 @@ export default function ProdutosPage(): React.JSX.Element {
           for (const img of imagensPendentes) {
             await fetch('/api/produto-imagens', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 produto_id: savedProduto.id,
                 url: img.url,
@@ -310,7 +310,7 @@ export default function ProdutosPage(): React.JSX.Element {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este produto?')) return;
     try {
-      const response = await fetch(`/api/produtos/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/produtos/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) { fetchProdutos(); }
     } catch (error) {
       console.error('Erro ao excluir produto:', error);

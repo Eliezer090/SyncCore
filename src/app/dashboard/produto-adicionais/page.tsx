@@ -38,6 +38,7 @@ import { z } from 'zod';
 import type { ProdutoAdicional, Produto } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
 import { useEmpresa } from '@/hooks/use-empresa';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   produto_id: z.coerce.number().min(1, 'Produto é obrigatório'),
@@ -68,7 +69,7 @@ export default function ProdutoAdicionaisPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/produto-adicionais?${params}`);
+      const response = await fetch(`/api/produto-adicionais?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setAdicionais(data.data || []);
       setTotal(data.total || 0);
@@ -85,7 +86,7 @@ export default function ProdutoAdicionaisPage(): React.JSX.Element {
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/produtos?${params}`);
+      const response = await fetch(`/api/produtos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setProdutos(data.data || []);
     } catch (error) {
@@ -112,7 +113,7 @@ export default function ProdutoAdicionaisPage(): React.JSX.Element {
     try {
       const url = selectedAdicional ? `/api/produto-adicionais/${selectedAdicional.id}` : '/api/produto-adicionais';
       const method = selectedAdicional ? 'PUT' : 'POST';
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const response = await fetch(url, { method, headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (response.ok) { handleCloseDialog(); fetchAdicionais(); }
     } catch (error) {
       console.error('Erro ao salvar:', error);
@@ -124,7 +125,7 @@ export default function ProdutoAdicionaisPage(): React.JSX.Element {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir?')) return;
     try {
-      const response = await fetch(`/api/produto-adicionais/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/produto-adicionais/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) { fetchAdicionais(); }
     } catch (error) {
       console.error('Erro ao excluir:', error);

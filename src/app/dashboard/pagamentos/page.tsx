@@ -43,6 +43,7 @@ import type { Pagamento, Pedido } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
 import { ImageUpload } from '@/components/core/image-upload';
 import { useEmpresa } from '@/hooks/use-empresa';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   pedido_id: z.coerce.number().min(1, 'Pedido é obrigatório'),
@@ -90,7 +91,7 @@ export default function PagamentosPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/pagamentos?${params}`);
+      const response = await fetch(`/api/pagamentos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setPagamentos(data.data || []);
       setTotal(data.total || 0);
@@ -107,7 +108,7 @@ export default function PagamentosPage(): React.JSX.Element {
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/pedidos?${params}`);
+      const response = await fetch(`/api/pedidos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setPedidos(data.data || []);
     } catch (error) {
@@ -144,7 +145,7 @@ export default function PagamentosPage(): React.JSX.Element {
       const url = selectedPagamento ? `/api/pagamentos/${selectedPagamento.id}` : '/api/pagamentos';
       const method = selectedPagamento ? 'PUT' : 'POST';
       const payload = { ...data, pago_em: data.status === 'pago' ? new Date().toISOString() : null };
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await fetch(url, { method, headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (response.ok) { handleCloseDialog(); fetchPagamentos(); }
     } catch (error) {
       console.error('Erro ao salvar pagamento:', error);
@@ -156,7 +157,7 @@ export default function PagamentosPage(): React.JSX.Element {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este pagamento?')) return;
     try {
-      const response = await fetch(`/api/pagamentos/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/pagamentos/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) { fetchPagamentos(); }
     } catch (error) {
       console.error('Erro ao excluir pagamento:', error);

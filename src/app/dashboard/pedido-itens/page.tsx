@@ -38,6 +38,7 @@ import { z } from 'zod';
 import type { PedidoItem, Pedido, Produto } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
 import { useEmpresa } from '@/hooks/use-empresa';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   pedido_id: z.coerce.number().min(1, 'Pedido é obrigatório'),
@@ -72,7 +73,7 @@ export default function PedidoItensPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/pedido-itens?${params}`);
+      const response = await fetch(`/api/pedido-itens?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setItens(data.data || []);
       setTotal(data.total || 0);
@@ -89,7 +90,7 @@ export default function PedidoItensPage(): React.JSX.Element {
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/pedidos?${params}`);
+      const response = await fetch(`/api/pedidos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setPedidos(data.data || []);
     } catch (error) {
@@ -103,7 +104,7 @@ export default function PedidoItensPage(): React.JSX.Element {
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/produtos?${params}`);
+      const response = await fetch(`/api/produtos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setProdutos(data.data || []);
     } catch (error) {
@@ -144,7 +145,7 @@ export default function PedidoItensPage(): React.JSX.Element {
     try {
       const url = selectedItem ? `/api/pedido-itens/${selectedItem.id}` : '/api/pedido-itens';
       const method = selectedItem ? 'PUT' : 'POST';
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const response = await fetch(url, { method, headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (response.ok) { handleCloseDialog(); fetchItens(); }
     } catch (error) {
       console.error('Erro ao salvar item:', error);
@@ -156,7 +157,7 @@ export default function PedidoItensPage(): React.JSX.Element {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este item?')) return;
     try {
-      const response = await fetch(`/api/pedido-itens/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/pedido-itens/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) fetchItens();
     } catch (error) {
       console.error('Erro ao excluir item:', error);

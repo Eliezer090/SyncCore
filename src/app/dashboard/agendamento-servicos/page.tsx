@@ -37,6 +37,7 @@ import dayjs from 'dayjs';
 import type { AgendamentoServico, Agendamento, Servico } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
 import { useEmpresa } from '@/hooks/use-empresa';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   agendamento_id: z.coerce.number().min(1, 'Agendamento é obrigatório'),
@@ -68,7 +69,7 @@ export default function AgendamentoServicosPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/agendamento-servicos?${params}`);
+      const response = await fetch(`/api/agendamento-servicos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setVinculacoes(data.data || []);
       setTotal(data.total || 0);
@@ -85,7 +86,7 @@ export default function AgendamentoServicosPage(): React.JSX.Element {
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/agendamentos?${params}`);
+      const response = await fetch(`/api/agendamentos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setAgendamentos(data.data || []);
     } catch (error) {
@@ -99,7 +100,7 @@ export default function AgendamentoServicosPage(): React.JSX.Element {
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/servicos?${params}`);
+      const response = await fetch(`/api/servicos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setServicos(data.data || []);
     } catch (error) {
@@ -127,7 +128,7 @@ export default function AgendamentoServicosPage(): React.JSX.Element {
     try {
       const response = await fetch('/api/agendamento-servicos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       if (response.ok) { handleCloseDialog(); fetchVinculacoes(); }
@@ -141,7 +142,7 @@ export default function AgendamentoServicosPage(): React.JSX.Element {
   const handleDelete = async (agendamentoId: number, servicoId: number) => {
     if (!confirm('Tem certeza que deseja remover este serviço do agendamento?')) return;
     try {
-      const response = await fetch(`/api/agendamento-servicos?agendamento_id=${agendamentoId}&servico_id=${servicoId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/agendamento-servicos?agendamento_id=${agendamentoId}&servico_id=${servicoId}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) fetchVinculacoes();
     } catch (error) {
       console.error('Erro ao excluir vinculação:', error);
