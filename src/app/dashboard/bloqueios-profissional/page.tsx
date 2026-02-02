@@ -43,6 +43,8 @@ import dayjs from 'dayjs';
 import type { BloqueioProfissional, Usuario } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
 import { useEmpresa } from '@/hooks/use-empresa';
+import { useUser } from '@/hooks/use-user';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const DIAS_SEMANA = [
   { value: 0, label: 'Domingo' },
@@ -67,6 +69,8 @@ type FormData = z.infer<typeof schema>;
 
 export default function BloqueiosProfissionalPage(): React.JSX.Element {
   const { empresaId } = useEmpresa();
+  const { user } = useUser();
+  const isProfissional = user?.papel === 'profissional';
   const [bloqueios, setBloqueios] = React.useState<(BloqueioProfissional & { profissional_nome?: string })[]>([]);
   const [profissionais, setProfissionais] = React.useState<Usuario[]>([]);
   const [total, setTotal] = React.useState(0);
@@ -88,7 +92,7 @@ export default function BloqueiosProfissionalPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/bloqueios-profissional?${params}`);
+      const response = await fetch(`/api/bloqueios-profissional?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setBloqueios(data.data || []);
       setTotal(data.total || 0);
@@ -101,17 +105,22 @@ export default function BloqueiosProfissionalPage(): React.JSX.Element {
 
   const fetchProfissionais = React.useCallback(async () => {
     try {
+      // Se o usuário é profissional, mostra apenas ele mesmo
+      if (isProfissional && user) {
+        setProfissionais([{ id: Number(user.id), nome: user.nome, email: user.email, papel: user.papel } as Usuario]);
+        return;
+      }
       const params = new URLSearchParams({ limit: '1000' });
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/profissionais?${params}`);
+      const response = await fetch(`/api/profissionais?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setProfissionais(data.data || []);
     } catch (error) {
       console.error('Erro ao buscar profissionais:', error);
     }
-  }, [empresaId]);
+  }, [empresaId, isProfissional, user]);
 
   React.useEffect(() => { fetchBloqueios(); fetchProfissionais(); }, [fetchBloqueios, fetchProfissionais]);
 
@@ -122,8 +131,10 @@ export default function BloqueiosProfissionalPage(): React.JSX.Element {
 
   const handleOpenDialog = (bloqueio?: BloqueioProfissional) => {
     setSelectedBloqueio(bloqueio || null);
+    // Se é profissional e está criando novo, pré-seleciona o próprio usuário
+    const defaultUsuarioId = isProfissional && user && !bloqueio ? Number(user.id) : (bloqueio?.usuario_id || 0);
     reset({
-      usuario_id: bloqueio?.usuario_id || 0,
+      usuario_id: defaultUsuarioId,
       inicio: formatDateForInput(bloqueio?.inicio),
       fim: formatDateForInput(bloqueio?.fim),
       motivo: bloqueio?.motivo || '',
@@ -144,7 +155,7 @@ export default function BloqueiosProfissionalPage(): React.JSX.Element {
       };
       const url = selectedBloqueio ? `/api/bloqueios-profissional/${selectedBloqueio.id}` : '/api/bloqueios-profissional';
       const method = selectedBloqueio ? 'PUT' : 'POST';
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(payload) });
       if (response.ok) { handleCloseDialog(); fetchBloqueios(); }
     } catch (error) {
       console.error('Erro ao salvar:', error);
@@ -161,7 +172,7 @@ export default function BloqueiosProfissionalPage(): React.JSX.Element {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir?')) return;
     try {
-      const response = await fetch(`/api/bloqueios-profissional/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/bloqueios-profissional/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) { fetchBloqueios(); }
     } catch (error) {
       console.error('Erro ao excluir:', error);
@@ -231,12 +242,13 @@ export default function BloqueiosProfissionalPage(): React.JSX.Element {
                         value={profissionais.find(p => p.id === field.value) || null}
                         onChange={(_, newValue) => field.onChange(newValue?.id || 0)}
                         isOptionEqualToValue={(option, value) => option.id === value.id}
+                        disabled={isProfissional}
                         renderInput={(params) => (
                           <TextField 
                             {...params} 
                             label="Profissional" 
                             error={Boolean(errors.usuario_id)} 
-                            helperText={errors.usuario_id?.message}
+                            helperText={isProfissional ? 'Você só pode gerenciar seus próprios bloqueios' : errors.usuario_id?.message}
                           />
                         )}
                         noOptionsText="Nenhum profissional encontrado"

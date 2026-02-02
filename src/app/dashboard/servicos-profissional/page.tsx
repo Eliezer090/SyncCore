@@ -41,6 +41,8 @@ import { z } from 'zod';
 import type { ServicoProfissional, Usuario, Servico } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
 import { useEmpresa } from '@/hooks/use-empresa';
+import { useUser } from '@/hooks/use-user';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   usuario_id: z.coerce.number().min(1, 'Profissional é obrigatório'),
@@ -55,6 +57,8 @@ type FormData = z.infer<typeof schema>;
 
 export default function ServicosProfissionalPage(): React.JSX.Element {
   const { empresaId } = useEmpresa();
+  const { user } = useUser();
+  const isProfissional = user?.papel === 'profissional';
   const [vinculos, setVinculos] = React.useState<(ServicoProfissional & { profissional_nome?: string; servico_nome?: string })[]>([]);
   const [profissionais, setProfissionais] = React.useState<Usuario[]>([]);
   const [servicos, setServicos] = React.useState<Servico[]>([]);
@@ -75,7 +79,7 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
     setLoadingData(true);
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: rowsPerPage.toString() });
-      const response = await fetch(`/api/servicos-profissional?${params}`);
+      const response = await fetch(`/api/servicos-profissional?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setVinculos(data.data || []);
       setTotal(data.total || 0);
@@ -88,17 +92,22 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
 
   const fetchProfissionais = React.useCallback(async () => {
     try {
+      // Se o usuário é profissional, mostra apenas ele mesmo
+      if (isProfissional && user) {
+        setProfissionais([{ id: Number(user.id), nome: user.nome, email: user.email, papel: user.papel } as Usuario]);
+        return;
+      }
       const params = new URLSearchParams({ limit: '1000' });
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/profissionais?${params}`);
+      const response = await fetch(`/api/profissionais?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setProfissionais(data.data || []);
     } catch (error) {
       console.error('Erro ao buscar profissionais:', error);
     }
-  }, [empresaId]);
+  }, [empresaId, isProfissional, user]);
 
   const fetchServicos = React.useCallback(async () => {
     try {
@@ -106,7 +115,7 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
       if (empresaId) {
         params.set('empresa_id', empresaId.toString());
       }
-      const response = await fetch(`/api/servicos?${params}`);
+      const response = await fetch(`/api/servicos?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
       setServicos(data.data || []);
     } catch (error) {
@@ -118,8 +127,10 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
 
   const handleOpenDialog = (vinculo?: ServicoProfissional) => {
     setSelectedVinculo(vinculo || null);
+    // Se é profissional e está criando novo, pré-seleciona o próprio usuário
+    const defaultUsuarioId = isProfissional && user && !vinculo ? Number(user.id) : (vinculo?.usuario_id || 0);
     reset({
-      usuario_id: vinculo?.usuario_id || 0,
+      usuario_id: defaultUsuarioId,
       servico_id: vinculo?.servico_id || 0,
       duracao_minutos: vinculo?.duracao_minutos || 30,
       preco: vinculo?.preco || null,
@@ -136,7 +147,7 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
     try {
       const url = selectedVinculo ? `/api/servicos-profissional/${selectedVinculo.id}` : '/api/servicos-profissional';
       const method = selectedVinculo ? 'PUT' : 'POST';
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(data) });
       if (response.ok) { handleCloseDialog(); fetchVinculos(); }
     } catch (error) {
       console.error('Erro ao salvar:', error);
@@ -148,7 +159,7 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir?')) return;
     try {
-      const response = await fetch(`/api/servicos-profissional/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/servicos-profissional/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) { fetchVinculos(); }
     } catch (error) {
       console.error('Erro ao excluir:', error);
@@ -214,12 +225,13 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
                         value={profissionais.find(p => p.id === field.value) || null}
                         onChange={(_, newValue) => field.onChange(newValue?.id || 0)}
                         isOptionEqualToValue={(option, value) => option.id === value.id}
+                        disabled={isProfissional}
                         renderInput={(params) => (
                           <TextField 
                             {...params} 
                             label="Profissional" 
                             error={Boolean(errors.usuario_id)} 
-                            helperText={errors.usuario_id?.message}
+                            helperText={isProfissional ? 'Você só pode gerenciar seus próprios serviços' : errors.usuario_id?.message}
                           />
                         )}
                         noOptionsText="Nenhum profissional encontrado"
