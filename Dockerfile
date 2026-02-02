@@ -1,3 +1,11 @@
+# ==============================================================================
+# DOCKERFILE OTIMIZADO PARA BUILD VIA GITHUB ACTIONS
+# ==============================================================================
+# Este Dockerfile é otimizado para build no CI/CD (GitHub Actions)
+# A imagem final é publicada no GitHub Container Registry (ghcr.io)
+# e depois usada no EasyPanel sem precisar buildar novamente.
+# ==============================================================================
+
 # Estágio 1: Instalação de dependências
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
@@ -27,7 +35,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Argumentos de build que serão convertidos em variáveis de ambiente
+# Argumentos de build (passados pelo GitHub Actions)
 ARG DB_HOST
 ARG DB_PORT
 ARG DB_NAME
@@ -40,6 +48,11 @@ ARG IMAGEKIT_PRIVATE_KEY
 ARG IMAGEKIT_URL_ENDPOINT
 ARG RESEND_API_KEY
 ARG FROM_EMAIL
+ARG EVOLUTION_API_URL
+ARG EVOLUTION_API_KEY
+ARG N8N_WEBHOOK_URL
+ARG RABBITMQ_URL
+ARG WEBHOOK_SECRET
 
 # Converter ARGs em ENVs para o build
 ENV DB_HOST=$DB_HOST
@@ -54,11 +67,16 @@ ENV IMAGEKIT_PRIVATE_KEY=$IMAGEKIT_PRIVATE_KEY
 ENV IMAGEKIT_URL_ENDPOINT=$IMAGEKIT_URL_ENDPOINT
 ENV RESEND_API_KEY=$RESEND_API_KEY
 ENV FROM_EMAIL=$FROM_EMAIL
+ENV EVOLUTION_API_URL=$EVOLUTION_API_URL
+ENV EVOLUTION_API_KEY=$EVOLUTION_API_KEY
+ENV N8N_WEBHOOK_URL=$N8N_WEBHOOK_URL
+ENV RABBITMQ_URL=$RABBITMQ_URL
+ENV WEBHOOK_SECRET=$WEBHOOK_SECRET
 
 # Build da aplicação
 RUN pnpm build
 
-# Estágio 3: Runner de produção
+# Estágio 3: Runner de produção (imagem final leve)
 FROM node:20-alpine AS runner
 WORKDIR /app
 
