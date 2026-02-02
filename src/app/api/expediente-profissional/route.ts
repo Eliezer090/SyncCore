@@ -49,21 +49,25 @@ export async function POST(request: NextRequest) {
       seg_sex_tarde_inicio,
       seg_sex_tarde_fim,
       trabalha_sabado,
-      sabado_inicio,
-      sabado_fim,
+      sabado_manha_inicio,
+      sabado_manha_fim,
+      sabado_tarde_inicio,
+      sabado_tarde_fim,
       trabalha_domingo,
-      domingo_inicio,
-      domingo_fim,
+      domingo_manha_inicio,
+      domingo_manha_fim,
+      domingo_tarde_inicio,
+      domingo_tarde_fim,
     } = body;
 
     const result = await query<ExpedienteProfissional>(`
       INSERT INTO expediente_profissional (
         usuario_id, seg_sex_manha_inicio, seg_sex_manha_fim, 
         seg_sex_tarde_inicio, seg_sex_tarde_fim,
-        trabalha_sabado, sabado_inicio, sabado_fim,
-        trabalha_domingo, domingo_inicio, domingo_fim
+        trabalha_sabado, sabado_manha_inicio, sabado_manha_fim, sabado_tarde_inicio, sabado_tarde_fim,
+        trabalha_domingo, domingo_manha_inicio, domingo_manha_fim, domingo_tarde_inicio, domingo_tarde_fim
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [
       usuario_id,
@@ -72,11 +76,15 @@ export async function POST(request: NextRequest) {
       seg_sex_tarde_inicio || null,
       seg_sex_tarde_fim || null,
       trabalha_sabado || false,
-      sabado_inicio || null,
-      sabado_fim || null,
+      sabado_manha_inicio || null,
+      sabado_manha_fim || null,
+      sabado_tarde_inicio || null,
+      sabado_tarde_fim || null,
       trabalha_domingo || false,
-      domingo_inicio || null,
-      domingo_fim || null,
+      domingo_manha_inicio || null,
+      domingo_manha_fim || null,
+      domingo_tarde_inicio || null,
+      domingo_tarde_fim || null,
     ]);
 
     return NextResponse.json(result[0], { status: 201 });

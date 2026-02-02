@@ -26,6 +26,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import InputLabel from '@mui/material/InputLabel';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Select from '@mui/material/Select';
@@ -223,11 +225,22 @@ export default function BloqueiosProfissionalPage(): React.JSX.Element {
                 <Grid container spacing={3}>
                   <Grid size={12}>
                     <Controller name="usuario_id" control={control} render={({ field }) => (
-                      <FormControl fullWidth error={Boolean(errors.usuario_id)}>
-                        <InputLabel>Profissional</InputLabel>
-                        <Select {...field} label="Profissional">{profissionais.map((p) => (<MenuItem key={p.id} value={p.id}>{p.nome}</MenuItem>))}</Select>
-                        {errors.usuario_id && <FormHelperText>{errors.usuario_id.message}</FormHelperText>}
-                      </FormControl>
+                      <Autocomplete
+                        options={profissionais}
+                        getOptionLabel={(option) => option.nome}
+                        value={profissionais.find(p => p.id === field.value) || null}
+                        onChange={(_, newValue) => field.onChange(newValue?.id || 0)}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Profissional" 
+                            error={Boolean(errors.usuario_id)} 
+                            helperText={errors.usuario_id?.message}
+                          />
+                        )}
+                        noOptionsText="Nenhum profissional encontrado"
+                      />
                     )} />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>

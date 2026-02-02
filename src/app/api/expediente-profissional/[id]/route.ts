@@ -34,11 +34,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       seg_sex_tarde_inicio,
       seg_sex_tarde_fim,
       trabalha_sabado,
-      sabado_inicio,
-      sabado_fim,
+      sabado_manha_inicio,
+      sabado_manha_fim,
+      sabado_tarde_inicio,
+      sabado_tarde_fim,
       trabalha_domingo,
-      domingo_inicio,
-      domingo_fim,
+      domingo_manha_inicio,
+      domingo_manha_fim,
+      domingo_tarde_inicio,
+      domingo_tarde_fim,
     } = body;
 
     const result = await query<ExpedienteProfissional>(`
@@ -49,12 +53,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         seg_sex_tarde_inicio = $4,
         seg_sex_tarde_fim = $5,
         trabalha_sabado = $6,
-        sabado_inicio = $7,
-        sabado_fim = $8,
-        trabalha_domingo = $9,
-        domingo_inicio = $10,
-        domingo_fim = $11
-      WHERE id = $12
+        sabado_manha_inicio = $7,
+        sabado_manha_fim = $8,
+        sabado_tarde_inicio = $9,
+        sabado_tarde_fim = $10,
+        trabalha_domingo = $11,
+        domingo_manha_inicio = $12,
+        domingo_manha_fim = $13,
+        domingo_tarde_inicio = $14,
+        domingo_tarde_fim = $15
+      WHERE id = $16
       RETURNING *
     `, [
       usuario_id,
@@ -63,11 +71,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       seg_sex_tarde_inicio || null,
       seg_sex_tarde_fim || null,
       trabalha_sabado || false,
-      sabado_inicio || null,
-      sabado_fim || null,
+      sabado_manha_inicio || null,
+      sabado_manha_fim || null,
+      sabado_tarde_inicio || null,
+      sabado_tarde_fim || null,
       trabalha_domingo || false,
-      domingo_inicio || null,
-      domingo_fim || null,
+      domingo_manha_inicio || null,
+      domingo_manha_fim || null,
+      domingo_tarde_inicio || null,
+      domingo_tarde_fim || null,
       id,
     ]);
 

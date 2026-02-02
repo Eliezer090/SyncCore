@@ -867,7 +867,7 @@ export default function AgendamentosPage(): React.JSX.Element {
                       <Controller name="duracao_total_minutos" control={control} render={({ field }) => (
                         <FormControl fullWidth>
                           <InputLabel>Duração Total</InputLabel>
-                          <OutlinedInput {...field} type="number" value={field.value ?? ''} label="Duração Total" endAdornment={<span style={{ marginRight: 8 }}>min</span>} onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)} />
+                          <OutlinedInput {...field} type="number" value={field.value ?? ''} label="Duração Total" readOnly sx={{ bgcolor: 'action.disabledBackground' }} endAdornment={<span style={{ marginRight: 8 }}>min</span>} />
                           <FormHelperText>Calculado automaticamente com base nos serviços</FormHelperText>
                         </FormControl>
                       )} />
@@ -972,6 +972,11 @@ export default function AgendamentosPage(): React.JSX.Element {
                       <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
                         Adicionar Serviço
                       </Typography>
+                      {servicos.length === 0 ? (
+                        <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+                          Nenhum serviço cadastrado. Cadastre serviços na tela de Serviços.
+                        </Typography>
+                      ) : (
                       <Grid container spacing={2}>
                         <Grid size={{ xs: 12, sm: 4 }}>
                           <FormControl fullWidth size="small">
@@ -1041,6 +1046,7 @@ export default function AgendamentosPage(): React.JSX.Element {
                           </Button>
                         </Grid>
                       </Grid>
+                      )}
                     </Grid>
                   </Grid>
                 </CardContent>

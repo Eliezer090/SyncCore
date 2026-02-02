@@ -24,9 +24,9 @@ import FormControl from '@mui/material/FormControl';
 import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
 import OutlinedInput from '@mui/material/OutlinedInput';
-import Select from '@mui/material/Select';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 import Chip from '@mui/material/Chip';
@@ -51,11 +51,15 @@ const schema = z.object({
   seg_sex_tarde_inicio: z.string().nullable().optional(),
   seg_sex_tarde_fim: z.string().nullable().optional(),
   trabalha_sabado: z.boolean(),
-  sabado_inicio: z.string().nullable().optional(),
-  sabado_fim: z.string().nullable().optional(),
+  sabado_manha_inicio: z.string().nullable().optional(),
+  sabado_manha_fim: z.string().nullable().optional(),
+  sabado_tarde_inicio: z.string().nullable().optional(),
+  sabado_tarde_fim: z.string().nullable().optional(),
   trabalha_domingo: z.boolean(),
-  domingo_inicio: z.string().nullable().optional(),
-  domingo_fim: z.string().nullable().optional(),
+  domingo_manha_inicio: z.string().nullable().optional(),
+  domingo_manha_fim: z.string().nullable().optional(),
+  domingo_tarde_inicio: z.string().nullable().optional(),
+  domingo_tarde_fim: z.string().nullable().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -81,11 +85,15 @@ export default function ExpedienteProfissionalPage(): React.JSX.Element {
       seg_sex_tarde_inicio: '',
       seg_sex_tarde_fim: '',
       trabalha_sabado: false,
-      sabado_inicio: '',
-      sabado_fim: '',
+      sabado_manha_inicio: '',
+      sabado_manha_fim: '',
+      sabado_tarde_inicio: '',
+      sabado_tarde_fim: '',
       trabalha_domingo: false,
-      domingo_inicio: '',
-      domingo_fim: '',
+      domingo_manha_inicio: '',
+      domingo_manha_fim: '',
+      domingo_tarde_inicio: '',
+      domingo_tarde_fim: '',
     },
   });
 
@@ -140,11 +148,15 @@ export default function ExpedienteProfissionalPage(): React.JSX.Element {
       seg_sex_tarde_inicio: formatTime(expediente?.seg_sex_tarde_inicio || null),
       seg_sex_tarde_fim: formatTime(expediente?.seg_sex_tarde_fim || null),
       trabalha_sabado: expediente?.trabalha_sabado || false,
-      sabado_inicio: formatTime(expediente?.sabado_inicio || null),
-      sabado_fim: formatTime(expediente?.sabado_fim || null),
+      sabado_manha_inicio: formatTime(expediente?.sabado_manha_inicio || null),
+      sabado_manha_fim: formatTime(expediente?.sabado_manha_fim || null),
+      sabado_tarde_inicio: formatTime(expediente?.sabado_tarde_inicio || null),
+      sabado_tarde_fim: formatTime(expediente?.sabado_tarde_fim || null),
       trabalha_domingo: expediente?.trabalha_domingo || false,
-      domingo_inicio: formatTime(expediente?.domingo_inicio || null),
-      domingo_fim: formatTime(expediente?.domingo_fim || null),
+      domingo_manha_inicio: formatTime(expediente?.domingo_manha_inicio || null),
+      domingo_manha_fim: formatTime(expediente?.domingo_manha_fim || null),
+      domingo_tarde_inicio: formatTime(expediente?.domingo_tarde_inicio || null),
+      domingo_tarde_fim: formatTime(expediente?.domingo_tarde_fim || null),
     });
     setDialogOpen(true);
   };
@@ -277,19 +289,28 @@ export default function ExpedienteProfissionalPage(): React.JSX.Element {
                 <CardContent>
                   <Grid container spacing={3}>
                     <Grid size={12}>
-                      <Controller name="usuario_id" control={control} render={({ field }) => (
-                        <FormControl fullWidth error={Boolean(errors.usuario_id)}>
-                          <InputLabel>Profissional</InputLabel>
-                          <Select {...field} label="Profissional" disabled={!!selectedExpediente}>
-                            {profissionais
-                              .filter(p => selectedExpediente || !profissionaisComExpediente.includes(p.id))
-                              .map((p) => (
-                                <MenuItem key={p.id} value={p.id}>{p.nome}</MenuItem>
-                              ))}
-                          </Select>
-                          {errors.usuario_id && <FormHelperText>{errors.usuario_id.message}</FormHelperText>}
-                        </FormControl>
-                      )} />
+                    <Controller name="usuario_id" control={control} render={({ field }) => (
+                      <Autocomplete
+                        options={selectedExpediente 
+                          ? profissionais 
+                          : profissionais.filter(p => !profissionaisComExpediente.includes(p.id))
+                        }
+                        getOptionLabel={(option) => option.nome}
+                        value={profissionais.find(p => p.id === field.value) || null}
+                        onChange={(_, newValue) => field.onChange(newValue?.id || 0)}
+                        disabled={!!selectedExpediente}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Profissional" 
+                            error={Boolean(errors.usuario_id)} 
+                            helperText={errors.usuario_id?.message}
+                          />
+                        )}
+                        noOptionsText="Nenhum profissional disponível"
+                      />
+                    )} />
                     </Grid>
 
                     {/* Segunda a Sexta - Manhã */}
@@ -346,19 +367,41 @@ export default function ExpedienteProfissionalPage(): React.JSX.Element {
                     </Grid>
                     {trabalhaSabado && (
                       <>
+                        <Grid size={12}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Manhã</Typography>
+                        </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                          <Controller name="sabado_inicio" control={control} render={({ field }) => (
+                          <Controller name="sabado_manha_inicio" control={control} render={({ field }) => (
                             <FormControl fullWidth>
-                              <InputLabel shrink>Início Sábado</InputLabel>
-                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Início Sábado" notched />
+                              <InputLabel shrink>Início Manhã</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Início Manhã" notched />
                             </FormControl>
                           )} />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                          <Controller name="sabado_fim" control={control} render={({ field }) => (
+                          <Controller name="sabado_manha_fim" control={control} render={({ field }) => (
                             <FormControl fullWidth>
-                              <InputLabel shrink>Fim Sábado</InputLabel>
-                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Fim Sábado" notched />
+                              <InputLabel shrink>Fim Manhã</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Fim Manhã" notched />
+                            </FormControl>
+                          )} />
+                        </Grid>
+                        <Grid size={12}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Tarde</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <Controller name="sabado_tarde_inicio" control={control} render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel shrink>Início Tarde</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Início Tarde" notched />
+                            </FormControl>
+                          )} />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <Controller name="sabado_tarde_fim" control={control} render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel shrink>Fim Tarde</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Fim Tarde" notched />
                             </FormControl>
                           )} />
                         </Grid>
@@ -377,19 +420,41 @@ export default function ExpedienteProfissionalPage(): React.JSX.Element {
                     </Grid>
                     {trabalhaDomingo && (
                       <>
+                        <Grid size={12}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Manhã</Typography>
+                        </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                          <Controller name="domingo_inicio" control={control} render={({ field }) => (
+                          <Controller name="domingo_manha_inicio" control={control} render={({ field }) => (
                             <FormControl fullWidth>
-                              <InputLabel shrink>Início Domingo</InputLabel>
-                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Início Domingo" notched />
+                              <InputLabel shrink>Início Manhã</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Início Manhã" notched />
                             </FormControl>
                           )} />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                          <Controller name="domingo_fim" control={control} render={({ field }) => (
+                          <Controller name="domingo_manha_fim" control={control} render={({ field }) => (
                             <FormControl fullWidth>
-                              <InputLabel shrink>Fim Domingo</InputLabel>
-                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Fim Domingo" notched />
+                              <InputLabel shrink>Fim Manhã</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Fim Manhã" notched />
+                            </FormControl>
+                          )} />
+                        </Grid>
+                        <Grid size={12}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Tarde</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <Controller name="domingo_tarde_inicio" control={control} render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel shrink>Início Tarde</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Início Tarde" notched />
+                            </FormControl>
+                          )} />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <Controller name="domingo_tarde_fim" control={control} render={({ field }) => (
+                            <FormControl fullWidth>
+                              <InputLabel shrink>Fim Tarde</InputLabel>
+                              <OutlinedInput {...field} value={field.value || ''} type="time" label="Fim Tarde" notched />
                             </FormControl>
                           )} />
                         </Grid>

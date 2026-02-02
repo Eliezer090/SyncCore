@@ -210,11 +210,15 @@ export interface ExpedienteProfissional {
   seg_sex_tarde_inicio: string | null;
   seg_sex_tarde_fim: string | null;
   trabalha_sabado: boolean;
-  sabado_inicio: string | null;
-  sabado_fim: string | null;
+  sabado_manha_inicio: string | null;
+  sabado_manha_fim: string | null;
+  sabado_tarde_inicio: string | null;
+  sabado_tarde_fim: string | null;
   trabalha_domingo: boolean;
-  domingo_inicio: string | null;
-  domingo_fim: string | null;
+  domingo_manha_inicio: string | null;
+  domingo_manha_fim: string | null;
+  domingo_tarde_inicio: string | null;
+  domingo_tarde_fim: string | null;
 }
 
 export interface BloqueioProfissional {

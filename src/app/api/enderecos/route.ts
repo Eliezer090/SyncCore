@@ -39,8 +39,11 @@ export async function GET(request: NextRequest) {
       paramIndex++;
     }
     // Ou filtrar por empresa do usuário (obrigatório para não-admin_global)
+    // Inclui endereços da empresa OU de clientes vinculados à empresa via clientes_empresas
     else if (empresaIdFiltro !== null) {
-      whereClause += whereClause ? ` AND e.empresa_id = $${paramIndex}` : ` WHERE e.empresa_id = $${paramIndex}`;
+      whereClause += whereClause 
+        ? ` AND (e.empresa_id = $${paramIndex} OR e.cliente_id IN (SELECT cliente_id FROM clientes_empresas WHERE empresa_id = $${paramIndex}))`
+        : ` WHERE (e.empresa_id = $${paramIndex} OR e.cliente_id IN (SELECT cliente_id FROM clientes_empresas WHERE empresa_id = $${paramIndex}))`;
       params.push(empresaIdFiltro);
       paramIndex++;
     }

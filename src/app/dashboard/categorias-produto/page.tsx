@@ -40,7 +40,6 @@ import { z } from 'zod';
 
 import type { CategoriaProduto, Empresa } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
-import { ImageUpload } from '@/components/core/image-upload';
 import { useEmpresa } from '@/hooks/use-empresa';
 import { getAuthHeaders } from '@/lib/auth/client';
 
@@ -49,7 +48,6 @@ const schema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
   descricao: z.string().nullable().optional(),
   ativo: z.boolean(),
-  url_imagem: z.string().nullable().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -69,7 +67,7 @@ export default function CategoriasProdutoPage(): React.JSX.Element {
 
   const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { empresa_id: empresaId || 0, nome: '', descricao: '', ativo: true, url_imagem: null },
+    defaultValues: { empresa_id: empresaId || 0, nome: '', descricao: '', ativo: true },
   });
 
   // Atualiza empresa_id quando o hook carrega (para não-admin)
@@ -123,7 +121,6 @@ export default function CategoriasProdutoPage(): React.JSX.Element {
       nome: categoria?.nome || '',
       descricao: categoria?.descricao || '',
       ativo: categoria?.ativo ?? true,
-      url_imagem: categoria?.url_imagem ?? null,
     });
     setDialogOpen(true);
   };
@@ -132,7 +129,7 @@ export default function CategoriasProdutoPage(): React.JSX.Element {
     setDialogOpen(false);
     setSelectedCategoria(null);
     setErrorMessage(null);
-    reset({ empresa_id: empresaId || 0, nome: '', descricao: '', ativo: true, url_imagem: null });
+    reset({ empresa_id: empresaId || 0, nome: '', descricao: '', ativo: true });
   };
 
   const onSubmit = async (data: FormData) => {
@@ -219,19 +216,6 @@ export default function CategoriasProdutoPage(): React.JSX.Element {
               <Divider />
               <CardContent>
                 <Grid container spacing={3}>
-                  <Grid size={12}>
-                    <Controller name="url_imagem" control={control} render={({ field }) => (
-                      <ImageUpload
-                        value={field.value}
-                        onChange={field.onChange}
-                        folder="categorias/imagens"
-                        label="Imagem da Categoria"
-                        variant="card"
-                        width={150}
-                        height={150}
-                      />
-                    )} />
-                  </Grid>
                   {/* Campo Empresa - Apenas visível para admin_global */}
                   {isAdminGlobal && (
                     <Grid size={12}>

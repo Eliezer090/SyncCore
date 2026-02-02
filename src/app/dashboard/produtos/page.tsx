@@ -73,6 +73,7 @@ export default function ProdutosPage(): React.JSX.Element {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [selectedProduto, setSelectedProduto] = React.useState<Produto | null>(null);
   const [produtoImagens, setProdutoImagens] = React.useState<GalleryImage[]>([]);
+  const [imagensPendentes, setImagensPendentes] = React.useState<{ url: string; ordem: number; is_capa: boolean }[]>([]);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
@@ -159,24 +160,55 @@ export default function ProdutosPage(): React.JSX.Element {
   };
 
   const handleAddImagem = async (url: string, isCapa?: boolean) => {
-    if (!selectedProduto) return;
-    try {
-      const response = await fetch('/api/produto-imagens', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          produto_id: selectedProduto.id,
-          url,
-          ordem: produtoImagens.length,
-          is_capa: isCapa || produtoImagens.length === 0,
-        }),
-      });
-      if (response.ok) {
-        await fetchProdutoImagens(selectedProduto.id);
+    if (selectedProduto) {
+      // Produto existente - salva direto no banco
+      try {
+        const response = await fetch('/api/produto-imagens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            produto_id: selectedProduto.id,
+            url,
+            ordem: produtoImagens.length,
+            is_capa: isCapa || produtoImagens.length === 0,
+          }),
+        });
+        if (response.ok) {
+          await fetchProdutoImagens(selectedProduto.id);
+        }
+      } catch (error) {
+        console.error('Erro ao adicionar imagem:', error);
       }
-    } catch (error) {
-      console.error('Erro ao adicionar imagem:', error);
+    } else {
+      // Novo produto - adiciona à lista pendente
+      const allImages = [...imagensPendentes];
+      const newImage = {
+        url,
+        ordem: allImages.length,
+        is_capa: isCapa || allImages.length === 0,
+      };
+      // Se é capa, remove capa das outras
+      if (newImage.is_capa) {
+        allImages.forEach(img => img.is_capa = false);
+      }
+      setImagensPendentes([...allImages, newImage]);
     }
+  };
+
+  const handleRemoveImagemPendente = (url: string) => {
+    const remaining = imagensPendentes.filter(img => img.url !== url);
+    // Se removeu a capa e ainda tem imagens, define a primeira como capa
+    if (remaining.length > 0 && !remaining.some(img => img.is_capa)) {
+      remaining[0].is_capa = true;
+    }
+    setImagensPendentes(remaining);
+  };
+
+  const handleSetCapaPendente = (url: string) => {
+    setImagensPendentes(prev => prev.map(img => ({
+      ...img,
+      is_capa: img.url === url,
+    })));
   };
 
   const handleRemoveImagem = async (id: number) => {
@@ -208,6 +240,7 @@ export default function ProdutosPage(): React.JSX.Element {
   const handleOpenDialog = (produto?: Produto) => {
     setSelectedProduto(produto || null);
     setErrorMessage(null);
+    setImagensPendentes([]);
     reset({
       empresa_id: produto?.empresa_id || empresaId || 0,
       categoria_id: produto?.categoria_id || null,
@@ -229,6 +262,7 @@ export default function ProdutosPage(): React.JSX.Element {
     setDialogOpen(false);
     setSelectedProduto(null);
     setProdutoImagens([]);
+    setImagensPendentes([]);
     setErrorMessage(null);
     reset({ empresa_id: empresaId || 0, categoria_id: null, nome: '', descricao: '', preco: 0, controla_estoque: true, ativo: true });
   };
@@ -241,6 +275,24 @@ export default function ProdutosPage(): React.JSX.Element {
       const method = selectedProduto ? 'PUT' : 'POST';
       const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       if (response.ok) {
+        const savedProduto = await response.json();
+        
+        // Se é novo produto e tem imagens pendentes, salvar
+        if (!selectedProduto && imagensPendentes.length > 0) {
+          for (const img of imagensPendentes) {
+            await fetch('/api/produto-imagens', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                produto_id: savedProduto.id,
+                url: img.url,
+                ordem: img.ordem,
+                is_capa: img.is_capa,
+              }),
+            });
+          }
+        }
+        
         handleCloseDialog();
         fetchProdutos();
       } else {
@@ -326,8 +378,8 @@ export default function ProdutosPage(): React.JSX.Element {
               <Divider />
               <CardContent>
                 <Grid container spacing={3}>
-                  {selectedProduto && (
-                    <Grid size={{ xs: 12 }}>
+                  <Grid size={{ xs: 12 }}>
+                    {selectedProduto ? (
                       <ImageGalleryUpload
                         images={produtoImagens}
                         onAdd={handleAddImagem}
@@ -337,15 +389,29 @@ export default function ProdutosPage(): React.JSX.Element {
                         label="Galeria de Imagens"
                         maxImages={10}
                       />
-                    </Grid>
-                  )}
-                  {!selectedProduto && (
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        Salve o produto primeiro para adicionar imagens
-                      </Typography>
-                    </Grid>
-                  )}
+                    ) : (
+                      <ImageGalleryUpload
+                        images={imagensPendentes.map((img, idx) => ({ 
+                          id: idx, 
+                          url: img.url, 
+                          ordem: img.ordem, 
+                          is_capa: img.is_capa 
+                        }))}
+                        onAdd={handleAddImagem}
+                        onRemove={(id) => {
+                          const img = imagensPendentes[id];
+                          if (img) handleRemoveImagemPendente(img.url);
+                        }}
+                        onSetCapa={(id) => {
+                          const img = imagensPendentes[id];
+                          if (img) handleSetCapaPendente(img.url);
+                        }}
+                        folder="produtos/imagens"
+                        label="Galeria de Imagens"
+                        maxImages={10}
+                      />
+                    )}
+                  </Grid>
                   {/* Campo Empresa - Apenas visível para admin_global */}
                   {isAdminGlobal && (
                     <Grid size={{ xs: 12, md: 6 }}>

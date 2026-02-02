@@ -26,6 +26,8 @@ import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import InputLabel from '@mui/material/InputLabel';
 import InputAdornment from '@mui/material/InputAdornment';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Select from '@mui/material/Select';
@@ -237,11 +239,22 @@ export default function PagamentosPage(): React.JSX.Element {
                   </Grid>
                   <Grid size={12}>
                     <Controller name="pedido_id" control={control} render={({ field }) => (
-                      <FormControl fullWidth error={Boolean(errors.pedido_id)}>
-                        <InputLabel>Pedido</InputLabel>
-                        <Select {...field} label="Pedido">{pedidos.map((p) => (<MenuItem key={p.id} value={p.id}>#{p.id} - R$ {Number(p.total).toFixed(2)}</MenuItem>))}</Select>
-                        {errors.pedido_id && <FormHelperText>{errors.pedido_id.message}</FormHelperText>}
-                      </FormControl>
+                      <Autocomplete
+                        options={pedidos}
+                        getOptionLabel={(option) => `#${option.id} - R$ ${Number(option.total).toFixed(2)}`}
+                        value={pedidos.find(p => p.id === field.value) || null}
+                        onChange={(_, newValue) => field.onChange(newValue?.id || 0)}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Pedido" 
+                            error={Boolean(errors.pedido_id)} 
+                            helperText={errors.pedido_id?.message}
+                          />
+                        )}
+                        noOptionsText="Nenhum pedido encontrado"
+                      />
                     )} />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
