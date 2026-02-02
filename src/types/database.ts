@@ -364,3 +364,21 @@ export type PedidoItemAdicionalInput = Omit<PedidoItemAdicional, 'id'>;
 export type AgendamentoServicoInput = Omit<AgendamentoServico, 'id'>;
 export type HistoricoConversaInput = Omit<HistoricoConversa, 'id'>;
 export type MensagemRecebidaInput = Omit<MensagemRecebida, 'id' | 'data_recebimento'>;
+
+// ==================== NOTIFICAÇÕES ====================
+
+export interface Notificacao {
+  id: string; // UUID
+  empresa_id: number;
+  cliente_id: number;
+  tipo: 'atendimento_humano' | string;
+  mensagem: string | null;
+  lida: boolean;
+  criada_em: Date;
+  // Campos de JOIN
+  cliente_nome?: string;
+  cliente_telefone?: string;
+  empresa_nome?: string;
+}
+
+export type NotificacaoInput = Omit<Notificacao, 'id' | 'criada_em' | 'cliente_nome' | 'cliente_telefone' | 'empresa_nome'>;

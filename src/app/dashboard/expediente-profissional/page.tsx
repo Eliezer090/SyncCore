@@ -238,8 +238,11 @@ export default function ExpedienteProfissionalPage(): React.JSX.Element {
                       {row.trabalha_sabado ? (
                         <Stack direction="row" spacing={1} alignItems="center">
                           <CheckIcon color="green" />
-                          {row.sabado_inicio && row.sabado_fim && (
-                            <Chip size="small" label={`${formatTime(row.sabado_inicio)} - ${formatTime(row.sabado_fim)}`} color="success" variant="outlined" />
+                          {row.sabado_manha_inicio && row.sabado_manha_fim && (
+                            <Chip size="small" label={`M: ${formatTime(row.sabado_manha_inicio)} - ${formatTime(row.sabado_manha_fim)}`} color="success" variant="outlined" />
+                          )}
+                          {row.sabado_tarde_inicio && row.sabado_tarde_fim && (
+                            <Chip size="small" label={`T: ${formatTime(row.sabado_tarde_inicio)} - ${formatTime(row.sabado_tarde_fim)}`} color="success" variant="outlined" />
                           )}
                         </Stack>
                       ) : (
@@ -250,8 +253,11 @@ export default function ExpedienteProfissionalPage(): React.JSX.Element {
                       {row.trabalha_domingo ? (
                         <Stack direction="row" spacing={1} alignItems="center">
                           <CheckIcon color="green" />
-                          {row.domingo_inicio && row.domingo_fim && (
-                            <Chip size="small" label={`${formatTime(row.domingo_inicio)} - ${formatTime(row.domingo_fim)}`} color="success" variant="outlined" />
+                          {row.domingo_manha_inicio && row.domingo_manha_fim && (
+                            <Chip size="small" label={`M: ${formatTime(row.domingo_manha_inicio)} - ${formatTime(row.domingo_manha_fim)}`} color="success" variant="outlined" />
+                          )}
+                          {row.domingo_tarde_inicio && row.domingo_tarde_fim && (
+                            <Chip size="small" label={`T: ${formatTime(row.domingo_tarde_inicio)} - ${formatTime(row.domingo_tarde_fim)}`} color="success" variant="outlined" />
                           )}
                         </Stack>
                       ) : (

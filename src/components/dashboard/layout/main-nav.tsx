@@ -12,16 +12,21 @@ import { ListIcon } from '@phosphor-icons/react/dist/ssr/List';
 
 import { usePopover } from '@/hooks/use-popover';
 import { useUser } from '@/hooks/use-user';
+import { useNotificacoes } from '@/hooks/use-notificacoes';
 
 import { EmpresaSelector } from './empresa-selector';
 import { MobileNav } from './mobile-nav';
 import { UserPopover } from './user-popover';
+import { NotificationPopover } from './notification-popover';
+import { AlertaAtendimentoHumano } from './alerta-atendimento';
 
 export function MainNav(): React.JSX.Element {
   const [openNav, setOpenNav] = React.useState<boolean>(false);
   const { user } = useUser();
+  const { naoLidas } = useNotificacoes();
 
   const userPopover = usePopover<HTMLDivElement>();
+  const notificationPopover = usePopover<HTMLButtonElement>();
 
   return (
     <React.Fragment>
@@ -54,11 +59,18 @@ export function MainNav(): React.JSX.Element {
           </Stack>
           <Stack sx={{ alignItems: 'center' }} direction="row" spacing={2}>
             <Tooltip title="Notificações">
-              <Badge badgeContent={4} color="success" variant="dot">
-                <IconButton>
+              <IconButton
+                ref={notificationPopover.anchorRef}
+                onClick={notificationPopover.handleOpen}
+              >
+                <Badge 
+                  badgeContent={naoLidas} 
+                  color="error"
+                  max={99}
+                >
                   <BellIcon />
-                </IconButton>
-              </Badge>
+                </Badge>
+              </IconButton>
             </Tooltip>
             <Tooltip title={user?.nome || 'Usuário'}>
               <Avatar
@@ -77,6 +89,8 @@ export function MainNav(): React.JSX.Element {
         </Stack>
       </Box>
       <UserPopover anchorEl={userPopover.anchorRef.current} onClose={userPopover.handleClose} open={userPopover.open} />
+      <NotificationPopover anchorEl={notificationPopover.anchorRef.current} onClose={notificationPopover.handleClose} open={notificationPopover.open} />
+      <AlertaAtendimentoHumano />
       <MobileNav
         onClose={() => {
           setOpenNav(false);
