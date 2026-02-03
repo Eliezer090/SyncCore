@@ -9,6 +9,11 @@ const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:808
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
 
+// Log das configurações ao inicializar (sem expor a chave completa)
+console.log('[Evolution Config] URL:', EVOLUTION_API_URL);
+console.log('[Evolution Config] API Key configurada:', EVOLUTION_API_KEY ? `${EVOLUTION_API_KEY.substring(0, 8)}...` : 'NÃO CONFIGURADA');
+console.log('[Evolution Config] N8N Webhook:', N8N_WEBHOOK_URL || 'NÃO CONFIGURADO');
+
 interface EvolutionResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -60,25 +65,35 @@ export function sanitizeInstanceName(name: string): string {
  * Verifica se uma instância já existe
  */
 export async function checkInstanceExists(instanceName: string): Promise<EvolutionResponse<InstanceInfo | null>> {
+  const url = `${EVOLUTION_API_URL}/instance/fetchInstances`;
+  console.log('[Evolution] checkInstanceExists - URL:', url);
+  console.log('[Evolution] checkInstanceExists - Instance:', instanceName);
+  
   try {
-    const response = await fetch(`${EVOLUTION_API_URL}/instance/fetchInstances`, {
+    console.log('[Evolution] Fazendo fetch para:', url);
+    const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
     });
 
+    console.log('[Evolution] checkInstanceExists - Status:', response.status);
+    
     if (!response.ok) {
       const error = await response.text();
-      console.error('[Evolution] Erro ao verificar instâncias:', error);
-      return { success: false, error: 'Erro ao verificar instâncias' };
+      console.error('[Evolution] checkInstanceExists - Erro resposta:', error);
+      return { success: false, error: `Erro ao verificar instâncias: ${response.status} - ${error}` };
     }
 
     const instances: InstanceInfo[] = await response.json();
+    console.log('[Evolution] checkInstanceExists - Total instâncias:', instances.length);
     const found = instances.find(i => i.instanceName === instanceName);
+    console.log('[Evolution] checkInstanceExists - Encontrada:', !!found);
     
     return { success: true, data: found || null };
   } catch (error) {
-    console.error('[Evolution] Erro ao verificar instância:', error);
-    return { success: false, error: 'Erro de conexão com Evolution API' };
+    console.error('[Evolution] checkInstanceExists - Erro catch:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    return { success: false, error: `Erro de conexão com Evolution API: ${errorMessage}` };
   }
 }
 
@@ -86,32 +101,41 @@ export async function checkInstanceExists(instanceName: string): Promise<Evoluti
  * Cria uma nova instância na Evolution API
  */
 export async function createInstance(instanceName: string): Promise<EvolutionResponse<InstanceInfo>> {
+  const url = `${EVOLUTION_API_URL}/instance/create`;
+  console.log('[Evolution] createInstance - URL:', url);
+  console.log('[Evolution] createInstance - Instance:', instanceName);
+  
   try {
     const payload = {
       instanceName,
       qrcode: true,
       integration: 'WHATSAPP-BAILEYS',
     };
+    console.log('[Evolution] createInstance - Payload:', JSON.stringify(payload));
 
-    const response = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(payload),
     });
 
+    console.log('[Evolution] createInstance - Status:', response.status);
+    
     if (!response.ok) {
       const error = await response.text();
-      console.error('[Evolution] Erro ao criar instância:', error);
-      return { success: false, error: 'Erro ao criar instância' };
+      console.error('[Evolution] createInstance - Erro resposta:', error);
+      return { success: false, error: `Erro ao criar instância: ${response.status} - ${error}` };
     }
 
     const data = await response.json();
-    console.log('[Evolution] Instância criada:', instanceName);
+    console.log('[Evolution] createInstance - Sucesso:', instanceName);
+    console.log('[Evolution] createInstance - Data:', JSON.stringify(data));
     
     return { success: true, data };
   } catch (error) {
-    console.error('[Evolution] Erro ao criar instância:', error);
-    return { success: false, error: 'Erro de conexão com Evolution API' };
+    console.error('[Evolution] createInstance - Erro catch:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    return { success: false, error: `Erro de conexão com Evolution API: ${errorMessage}` };
   }
 }
 
@@ -168,23 +192,30 @@ export async function configureWebhook(instanceName: string, webhookUrl?: string
  * Obtém o QR Code para conexão
  */
 export async function getQRCode(instanceName: string): Promise<EvolutionResponse<QRCodeResponse>> {
+  const url = `${EVOLUTION_API_URL}/instance/connect/${instanceName}`;
+  console.log('[Evolution] getQRCode - URL:', url);
+  
   try {
-    const response = await fetch(`${EVOLUTION_API_URL}/instance/connect/${instanceName}`, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
     });
 
+    console.log('[Evolution] getQRCode - Status:', response.status);
+    
     if (!response.ok) {
       const error = await response.text();
-      console.error('[Evolution] Erro ao obter QR Code:', error);
-      return { success: false, error: 'Erro ao obter QR Code' };
+      console.error('[Evolution] getQRCode - Erro resposta:', error);
+      return { success: false, error: `Erro ao obter QR Code: ${response.status} - ${error}` };
     }
 
     const data = await response.json();
+    console.log('[Evolution] getQRCode - Sucesso, base64 presente:', !!data?.base64);
     return { success: true, data };
   } catch (error) {
-    console.error('[Evolution] Erro ao obter QR Code:', error);
-    return { success: false, error: 'Erro de conexão com Evolution API' };
+    console.error('[Evolution] getQRCode - Erro catch:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    return { success: false, error: `Erro de conexão com Evolution API: ${errorMessage}` };
   }
 }
 
@@ -272,36 +303,55 @@ export async function logoutInstance(instanceName: string): Promise<EvolutionRes
 export async function setupWhatsAppConnection(empresaNome: string, empresaId: number): Promise<EvolutionResponse<{ qrcode: QRCodeResponse; instanceName: string }>> {
   const instanceName = `empresa_${empresaId}_${sanitizeInstanceName(empresaNome)}`;
   
-  console.log('[Evolution] Iniciando setup para:', instanceName);
+  console.log('[Evolution] ====== INÍCIO DO SETUP ======');
+  console.log('[Evolution] Empresa Nome:', empresaNome);
+  console.log('[Evolution] Empresa ID:', empresaId);
+  console.log('[Evolution] Instance Name:', instanceName);
+  console.log('[Evolution] EVOLUTION_API_URL:', EVOLUTION_API_URL);
+  console.log('[Evolution] API Key presente:', !!EVOLUTION_API_KEY);
 
   // 1. Verificar se instância existe
+  console.log('[Evolution] Passo 1: Verificando se instância existe...');
   const existsResult = await checkInstanceExists(instanceName);
+  console.log('[Evolution] Passo 1 resultado:', JSON.stringify(existsResult));
   
   if (!existsResult.success) {
+    console.error('[Evolution] Passo 1 FALHOU:', existsResult.error);
     return { success: false, error: existsResult.error };
   }
 
   // 2. Criar instância se não existir
   if (!existsResult.data) {
+    console.log('[Evolution] Passo 2: Criando instância...');
     const createResult = await createInstance(instanceName);
+    console.log('[Evolution] Passo 2 resultado:', JSON.stringify(createResult));
     if (!createResult.success) {
+      console.error('[Evolution] Passo 2 FALHOU:', createResult.error);
       return { success: false, error: createResult.error };
     }
+  } else {
+    console.log('[Evolution] Passo 2: Instância já existe, pulando criação');
   }
 
   // 3. Configurar webhook
+  console.log('[Evolution] Passo 3: Configurando webhook...');
   const webhookResult = await configureWebhook(instanceName);
+  console.log('[Evolution] Passo 3 resultado:', JSON.stringify(webhookResult));
   if (!webhookResult.success) {
-    console.warn('[Evolution] Webhook não configurado:', webhookResult.error);
+    console.warn('[Evolution] Passo 3 AVISO: Webhook não configurado:', webhookResult.error);
     // Não falha - pode configurar depois
   }
 
   // 4. Obter QR Code
+  console.log('[Evolution] Passo 4: Obtendo QR Code...');
   const qrResult = await getQRCode(instanceName);
+  console.log('[Evolution] Passo 4 resultado: success=', qrResult.success, 'hasData=', !!qrResult.data);
   if (!qrResult.success || !qrResult.data) {
+    console.error('[Evolution] Passo 4 FALHOU:', qrResult.error);
     return { success: false, error: qrResult.error || 'Erro ao obter QR Code' };
   }
 
+  console.log('[Evolution] ====== SETUP CONCLUÍDO COM SUCESSO ======');
   return { 
     success: true, 
     data: { 
