@@ -65,28 +65,73 @@ export function sanitizeInstanceName(name: string): string {
  * Verifica se uma instância já existe
  */
 export async function checkInstanceExists(instanceName: string): Promise<EvolutionResponse<InstanceInfo | null>> {
-  const url = `${EVOLUTION_API_URL}/instance/fetchInstances`;
-  console.log('[Evolution] checkInstanceExists - URL:', url);
-  console.log('[Evolution] checkInstanceExists - Instance:', instanceName);
+  // Tentar primeiro buscar a instância específica pelo nome
+  const urlSpecific = `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instanceName}`;
+  console.log('[Evolution] checkInstanceExists - Buscando instância específica:', urlSpecific);
   
   try {
-    console.log('[Evolution] Fazendo fetch para:', url);
-    const response = await fetch(url, {
+    // Primeiro: buscar instância específica
+    const responseSpecific = await fetch(urlSpecific, {
       method: 'GET',
       headers: getHeaders(),
     });
 
-    console.log('[Evolution] checkInstanceExists - Status:', response.status);
+    console.log('[Evolution] checkInstanceExists - Status (específico):', responseSpecific.status);
     
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[Evolution] checkInstanceExists - Erro resposta:', error);
-      return { success: false, error: `Erro ao verificar instâncias: ${response.status} - ${error}` };
+    if (responseSpecific.ok) {
+      const data = await responseSpecific.json();
+      console.log('[Evolution] checkInstanceExists - Resposta específica:', JSON.stringify(data));
+      
+      // A Evolution API pode retornar um array ou um objeto
+      if (Array.isArray(data) && data.length > 0) {
+        const found = data.find((i: InstanceInfo) => i.instanceName === instanceName);
+        if (found) {
+          console.log('[Evolution] checkInstanceExists - Instância encontrada (array):', found.instanceName);
+          return { success: true, data: found };
+        }
+      } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+        // Pode ser um objeto único
+        if (data.instanceName === instanceName || data.instance?.instanceName === instanceName) {
+          console.log('[Evolution] checkInstanceExists - Instância encontrada (objeto)');
+          return { success: true, data: data as InstanceInfo };
+        }
+      }
     }
 
-    const instances: InstanceInfo[] = await response.json();
-    console.log('[Evolution] checkInstanceExists - Total instâncias:', instances.length);
-    const found = instances.find(i => i.instanceName === instanceName);
+    // Segundo: buscar todas as instâncias como fallback
+    const urlAll = `${EVOLUTION_API_URL}/instance/fetchInstances`;
+    console.log('[Evolution] checkInstanceExists - Buscando todas instâncias:', urlAll);
+    
+    const responseAll = await fetch(urlAll, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    console.log('[Evolution] checkInstanceExists - Status (todas):', responseAll.status);
+    
+    if (!responseAll.ok) {
+      const error = await responseAll.text();
+      console.error('[Evolution] checkInstanceExists - Erro resposta:', error);
+      return { success: false, error: `Erro ao verificar instâncias: ${responseAll.status} - ${error}` };
+    }
+
+    const instances = await responseAll.json();
+    console.log('[Evolution] checkInstanceExists - Resposta (raw):', JSON.stringify(instances).substring(0, 500));
+    
+    // Normalizar para array
+    const instancesArray: InstanceInfo[] = Array.isArray(instances) ? instances : [instances].filter(Boolean);
+    console.log('[Evolution] checkInstanceExists - Total instâncias:', instancesArray.length);
+    
+    // Listar nomes das instâncias para debug
+    const names = instancesArray.map((i: InstanceInfo) => i.instanceName || i.instance?.instanceName || 'unknown');
+    console.log('[Evolution] checkInstanceExists - Nomes encontrados:', names);
+    
+    // Buscar a instância pelo nome (checando diferentes formatos de resposta)
+    const found = instancesArray.find((i: InstanceInfo & { instance?: InstanceInfo }) => 
+      i.instanceName === instanceName || 
+      i.instance?.instanceName === instanceName
+    );
+    
     console.log('[Evolution] checkInstanceExists - Encontrada:', !!found);
     
     return { success: true, data: found || null };
@@ -99,6 +144,7 @@ export async function checkInstanceExists(instanceName: string): Promise<Evoluti
 
 /**
  * Cria uma nova instância na Evolution API
+ * Se a instância já existe (erro 403), retorna sucesso indicando que já existe
  */
 export async function createInstance(instanceName: string): Promise<EvolutionResponse<InstanceInfo>> {
   const url = `${EVOLUTION_API_URL}/instance/create`;
@@ -122,9 +168,20 @@ export async function createInstance(instanceName: string): Promise<EvolutionRes
     console.log('[Evolution] createInstance - Status:', response.status);
     
     if (!response.ok) {
-      const error = await response.text();
-      console.error('[Evolution] createInstance - Erro resposta:', error);
-      return { success: false, error: `Erro ao criar instância: ${response.status} - ${error}` };
+      const errorText = await response.text();
+      console.error('[Evolution] createInstance - Erro resposta:', errorText);
+      
+      // Se erro 403 com "already in use", significa que a instância já existe
+      // Isso é OK - podemos continuar o fluxo
+      if (response.status === 403 && errorText.includes('already in use')) {
+        console.log('[Evolution] createInstance - Instância já existe, continuando...');
+        return { 
+          success: true, 
+          data: { instanceName, status: 'existing' } as InstanceInfo 
+        };
+      }
+      
+      return { success: false, error: `Erro ao criar instância: ${response.status} - ${errorText}` };
     }
 
     const data = await response.json();
@@ -315,20 +372,27 @@ export async function setupWhatsAppConnection(empresaNome: string, empresaId: nu
   const existsResult = await checkInstanceExists(instanceName);
   console.log('[Evolution] Passo 1 resultado:', JSON.stringify(existsResult));
   
+  // Se falhou em verificar, tentar criar mesmo assim (a criação vai retornar se já existe)
+  let instanceExists = existsResult.success && existsResult.data;
+  
   if (!existsResult.success) {
-    console.error('[Evolution] Passo 1 FALHOU:', existsResult.error);
-    return { success: false, error: existsResult.error };
+    console.warn('[Evolution] Passo 1 AVISO: Não foi possível verificar instância, tentando criar...');
   }
 
-  // 2. Criar instância se não existir
-  if (!existsResult.data) {
+  // 2. Criar instância se não existir (ou se não conseguiu verificar)
+  if (!instanceExists) {
     console.log('[Evolution] Passo 2: Criando instância...');
     const createResult = await createInstance(instanceName);
     console.log('[Evolution] Passo 2 resultado:', JSON.stringify(createResult));
+    
+    // createInstance agora retorna sucesso mesmo se já existir (trata erro 403)
     if (!createResult.success) {
       console.error('[Evolution] Passo 2 FALHOU:', createResult.error);
       return { success: false, error: createResult.error };
     }
+    
+    // Se criou ou já existia, marcar como existente
+    instanceExists = true;
   } else {
     console.log('[Evolution] Passo 2: Instância já existe, pulando criação');
   }
@@ -346,7 +410,21 @@ export async function setupWhatsAppConnection(empresaNome: string, empresaId: nu
   console.log('[Evolution] Passo 4: Obtendo QR Code...');
   const qrResult = await getQRCode(instanceName);
   console.log('[Evolution] Passo 4 resultado: success=', qrResult.success, 'hasData=', !!qrResult.data);
+  
   if (!qrResult.success || !qrResult.data) {
+    // Se falhou ao obter QR, pode ser que a instância já está conectada
+    // Vamos verificar o estado da conexão
+    console.log('[Evolution] Passo 4 AVISO: QR não obtido, verificando estado da conexão...');
+    const stateResult = await getConnectionState(instanceName);
+    
+    if (stateResult.success && stateResult.data?.state === 'open') {
+      console.log('[Evolution] Instância já está conectada!');
+      return { 
+        success: false, 
+        error: 'Instância já está conectada. Se quiser reconectar, desconecte primeiro.' 
+      };
+    }
+    
     console.error('[Evolution] Passo 4 FALHOU:', qrResult.error);
     return { success: false, error: qrResult.error || 'Erro ao obter QR Code' };
   }
