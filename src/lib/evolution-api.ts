@@ -304,20 +304,55 @@ export async function getConnectionState(instanceName: string): Promise<Evolutio
  * Obtém informações da instância conectada (incluindo número do WhatsApp)
  */
 export async function getInstanceInfo(instanceName: string): Promise<EvolutionResponse<InstanceInfo>> {
+  const url = `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instanceName}`;
+  console.log('[Evolution] getInstanceInfo - URL:', url);
+  
   try {
-    const response = await fetch(`${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instanceName}`, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
     });
 
+    console.log('[Evolution] getInstanceInfo - Status:', response.status);
+
     if (!response.ok) {
       const error = await response.text();
-      console.error('[Evolution] Erro ao obter info da instância:', error);
+      console.error('[Evolution] getInstanceInfo - Erro resposta:', error);
       return { success: false, error: 'Erro ao obter informações' };
     }
 
-    const instances: InstanceInfo[] = await response.json();
-    const instance = instances.find(i => i.instanceName === instanceName);
+    const data = await response.json();
+    console.log('[Evolution] getInstanceInfo - Resposta raw:', JSON.stringify(data).substring(0, 500));
+    
+    // A resposta pode ser um array ou um objeto
+    let instance: InstanceInfo | null = null;
+    
+    if (Array.isArray(data)) {
+      // Buscar no array
+      instance = data.find((i: InstanceInfo & { instance?: InstanceInfo }) => 
+        i.instanceName === instanceName || 
+        i.instance?.instanceName === instanceName
+      );
+      
+      // Se encontrou no formato { instance: {...} }, extrair
+      if (instance && (instance as unknown as { instance?: InstanceInfo }).instance) {
+        const nested = instance as unknown as { instance: InstanceInfo };
+        instance = { ...nested.instance, ...instance };
+      }
+    } else if (data && typeof data === 'object') {
+      // Pode ser um objeto único
+      if (data.instanceName === instanceName) {
+        instance = data;
+      } else if (data.instance?.instanceName === instanceName) {
+        instance = data.instance;
+      }
+    }
+    
+    console.log('[Evolution] getInstanceInfo - Instância encontrada:', !!instance);
+    if (instance) {
+      console.log('[Evolution] getInstanceInfo - owner:', instance.owner);
+      console.log('[Evolution] getInstanceInfo - status:', instance.status);
+    }
     
     if (!instance) {
       return { success: false, error: 'Instância não encontrada' };
@@ -325,7 +360,7 @@ export async function getInstanceInfo(instanceName: string): Promise<EvolutionRe
 
     return { success: true, data: instance };
   } catch (error) {
-    console.error('[Evolution] Erro ao obter info:', error);
+    console.error('[Evolution] getInstanceInfo - Erro catch:', error);
     return { success: false, error: 'Erro de conexão com Evolution API' };
   }
 }

@@ -139,7 +139,8 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
 
   // Handler quando WhatsApp é conectado
   const handleWhatsAppConnected = (phoneNumber: string) => {
-    setValue('whatsapp_vinculado', phoneNumber);
+    console.log('[EmpresaForm] WhatsApp conectado com número:', phoneNumber);
+    setValue('whatsapp_vinculado', phoneNumber, { shouldDirty: true, shouldTouch: true });
     setIsWhatsappConnected(true);
   };
 

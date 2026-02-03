@@ -49,16 +49,24 @@ export async function GET(request: NextRequest) {
     const empresa = empresaResult[0];
     const instanceName = `empresa_${empresa.id}_${sanitizeInstanceName(empresa.nome)}`;
 
+    console.log('[Evolution QR Route] Verificando estado para:', instanceName);
+
     // Verificar estado atual
     const stateResult = await getConnectionState(instanceName);
+    console.log('[Evolution QR Route] Estado:', JSON.stringify(stateResult));
+    
     const isConnected = stateResult.success && stateResult.data?.state === 'open';
 
     // Se já está conectado
     if (isConnected) {
+      console.log('[Evolution QR Route] Instância conectada, buscando info...');
       let phoneNumber: string | null = null;
       const infoResult = await getInstanceInfo(instanceName);
+      console.log('[Evolution QR Route] Info da instância:', JSON.stringify(infoResult));
+      
       if (infoResult.success && infoResult.data?.owner) {
         phoneNumber = infoResult.data.owner.split('@')[0];
+        console.log('[Evolution QR Route] Número extraído:', phoneNumber);
         
         // Atualizar o whatsapp_vinculado se mudou
         if (phoneNumber && phoneNumber !== empresa.whatsapp_vinculado) {
@@ -66,6 +74,7 @@ export async function GET(request: NextRequest) {
             'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
             [phoneNumber, empresaId]
           );
+          console.log('[Evolution QR Route] Número atualizado no banco');
         }
       }
 

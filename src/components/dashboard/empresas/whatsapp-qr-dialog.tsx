@@ -116,15 +116,57 @@ export function WhatsAppQRDialog({
         );
 
         const data = await response.json();
+        console.log('[WhatsAppQR] Polling status:', data);
 
-        if (data.connected && data.phoneNumber) {
-          // Conectado!
-          setPhoneNumber(data.phoneNumber);
-          setStatus('connected');
+        if (data.connected) {
+          // Conectado! Parar polling primeiro
           stopPolling();
+          
+          // Atualizar estado visual
+          setStatus('connected');
+          
+          // Se já tem o número, usar diretamente
+          if (data.phoneNumber) {
+            console.log('[WhatsAppQR] Conectado com número:', data.phoneNumber);
+            setPhoneNumber(data.phoneNumber);
+            onConnected(data.phoneNumber);
+            
+            // Fechar popup automaticamente após 2 segundos
+            setTimeout(() => {
+              handleCloseRef.current();
+            }, 2000);
+          } else {
+            // Se não tem número na resposta de status, buscar via confirmConnection
+            console.log('[WhatsAppQR] Conectado, buscando número...');
+            const confirmResponse = await fetch('/api/evolution/qrcode', {
+              method: 'PUT',
+              headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ empresa_id: empresaId }),
+            });
 
-          // Confirmar e salvar
-          await confirmConnection();
+            const confirmData = await confirmResponse.json();
+            console.log('[WhatsAppQR] Confirmação:', confirmData);
+
+            if (confirmData.success && confirmData.phoneNumber) {
+              setPhoneNumber(confirmData.phoneNumber);
+              onConnected(confirmData.phoneNumber);
+              
+              // Fechar popup automaticamente após 2 segundos
+              setTimeout(() => {
+                handleCloseRef.current();
+              }, 2000);
+            } else if (confirmData.phoneNumber) {
+              setPhoneNumber(confirmData.phoneNumber);
+              onConnected(confirmData.phoneNumber);
+              
+              setTimeout(() => {
+                handleCloseRef.current();
+              }, 2000);
+            }
+          }
         }
       } catch (err) {
         console.error('[WhatsAppQR] Erro no polling:', err);
@@ -133,7 +175,10 @@ export function WhatsAppQRDialog({
 
     // Verificar a cada 3 segundos
     pollingRef.current = setInterval(checkConnection, 3000);
-  }, [empresaId, stopPolling, confirmConnection]);
+    
+    // Verificar imediatamente também
+    checkConnection();
+  }, [empresaId, stopPolling, onConnected]);
 
   // Iniciar conexão
   const startConnection = React.useCallback(async () => {
