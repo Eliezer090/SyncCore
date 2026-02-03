@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       console.error('[Evolution Route] Não autorizado:', error);
       return NextResponse.json({ error: error || 'Não autorizado' }, { status: 401 });
     }
-    console.log('[Evolution Route] Usuário autenticado:', user.id, user.papel);
+    console.log('[Evolution Route] Usuário autenticado:', user.userId, user.papel);
 
     const body = await request.json();
     const { empresa_id } = body;
@@ -59,6 +59,48 @@ export async function POST(request: NextRequest) {
 
     const empresa = empresaResult[0];
     console.log('[Evolution Route] Empresa encontrada:', empresa.id, empresa.nome);
+
+    // Verificar primeiro se já está conectado
+    const instanceName = `empresa_${empresa.id}_${sanitizeInstanceName(empresa.nome)}`;
+    console.log('[Evolution Route] Verificando estado da conexão para:', instanceName);
+    
+    const stateResult = await getConnectionState(instanceName);
+    console.log('[Evolution Route] Estado da conexão:', JSON.stringify(stateResult));
+    
+    // Se já está conectado, retornar info da conexão existente
+    if (stateResult.success && stateResult.data?.state === 'open') {
+      console.log('[Evolution Route] Instância já está conectada!');
+      
+      // Buscar informações do número conectado
+      const infoResult = await getInstanceInfo(instanceName);
+      let phoneNumber: string | null = null;
+      
+      if (infoResult.success && infoResult.data?.owner) {
+        phoneNumber = infoResult.data.owner.split('@')[0];
+        
+        // Atualizar o whatsapp_vinculado se necessário
+        if (phoneNumber && phoneNumber !== empresa.whatsapp_vinculado) {
+          await query(
+            'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
+            [phoneNumber, empresa_id]
+          );
+          console.log('[Evolution Route] Número atualizado no banco:', phoneNumber);
+        }
+      }
+      
+      return NextResponse.json({
+        success: true,
+        connected: true,
+        instanceName,
+        phoneNumber,
+        qrcode: {
+          instance: {
+            instanceName,
+            state: 'open'
+          }
+        }
+      });
+    }
 
     // Setup completo: criar instância + webhook + QR
     console.log('[Evolution Route] Iniciando setupWhatsAppConnection...');

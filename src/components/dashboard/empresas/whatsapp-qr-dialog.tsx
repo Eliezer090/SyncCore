@@ -45,16 +45,36 @@ export function WhatsAppQRDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = React.useState<string | null>(null);
   const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
+  const handleCloseRef = React.useRef<() => void>(() => {});
 
-  // Iniciar conexão
-  const startConnection = React.useCallback(async () => {
-    setStatus('loading');
-    setError(null);
+  // Parar polling
+  const stopPolling = React.useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  // Reset ao fechar
+  const handleClose = React.useCallback(() => {
+    stopPolling();
+    setStatus('idle');
     setQrCode(null);
+    setError(null);
+    setPhoneNumber(null);
+    onClose();
+  }, [stopPolling, onClose]);
 
+  // Atualizar ref quando handleClose mudar
+  React.useEffect(() => {
+    handleCloseRef.current = handleClose;
+  }, [handleClose]);
+
+  // Confirmar conexão e salvar número
+  const confirmConnection = React.useCallback(async () => {
     try {
-      const response = await fetch('/api/evolution', {
-        method: 'POST',
+      const response = await fetch('/api/evolution/qrcode', {
+        method: 'PUT',
         headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
@@ -63,25 +83,21 @@ export function WhatsAppQRDialog({
       });
 
       const data = await response.json();
+      console.log('[WhatsAppQR] Confirmação:', data);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao iniciar conexão');
-      }
-
-      if (data.qrcode?.base64) {
-        setQrCode(data.qrcode);
-        setStatus('waiting_scan');
-        // Iniciar polling para verificar conexão
-        startPolling();
-      } else {
-        throw new Error('QR Code não recebido');
+      if (data.success && data.phoneNumber) {
+        setPhoneNumber(data.phoneNumber);
+        onConnected(data.phoneNumber);
+        
+        // Fechar popup automaticamente após 2 segundos
+        setTimeout(() => {
+          handleCloseRef.current();
+        }, 2000);
       }
     } catch (err) {
-      console.error('[WhatsAppQR] Erro:', err);
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
-      setStatus('error');
+      console.error('[WhatsAppQR] Erro ao confirmar:', err);
     }
-  }, [empresaId]);
+  }, [empresaId, onConnected]);
 
   // Polling para verificar se conectou
   const startPolling = React.useCallback(() => {
@@ -117,21 +133,17 @@ export function WhatsAppQRDialog({
 
     // Verificar a cada 3 segundos
     pollingRef.current = setInterval(checkConnection, 3000);
-  }, [empresaId]);
+  }, [empresaId, stopPolling, confirmConnection]);
 
-  // Parar polling
-  const stopPolling = React.useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-  }, []);
+  // Iniciar conexão
+  const startConnection = React.useCallback(async () => {
+    setStatus('loading');
+    setError(null);
+    setQrCode(null);
 
-  // Confirmar conexão e salvar número
-  const confirmConnection = async () => {
     try {
-      const response = await fetch('/api/evolution/qrcode', {
-        method: 'PUT',
+      const response = await fetch('/api/evolution', {
+        method: 'POST',
         headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
@@ -140,15 +152,43 @@ export function WhatsAppQRDialog({
       });
 
       const data = await response.json();
+      console.log('[WhatsAppQR] Resposta da API:', data);
 
-      if (data.success && data.phoneNumber) {
-        setPhoneNumber(data.phoneNumber);
-        onConnected(data.phoneNumber);
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao iniciar conexão');
+      }
+
+      // Verificar se já está conectado (state: 'open')
+      if (data.qrcode?.instance?.state === 'open' || data.connected) {
+        console.log('[WhatsAppQR] Já está conectado!');
+        setPhoneNumber(data.phoneNumber || null);
+        setStatus('connected');
+        
+        if (data.phoneNumber) {
+          onConnected(data.phoneNumber);
+          // Fechar popup automaticamente após 2 segundos
+          setTimeout(() => {
+            handleCloseRef.current();
+          }, 2000);
+        }
+        return;
+      }
+
+      // Se tem QR Code base64, mostrar para escanear
+      if (data.qrcode?.base64) {
+        setQrCode(data.qrcode);
+        setStatus('waiting_scan');
+        // Iniciar polling para verificar conexão
+        startPolling();
+      } else {
+        throw new Error('QR Code não recebido. A instância pode já estar conectada.');
       }
     } catch (err) {
-      console.error('[WhatsAppQR] Erro ao confirmar:', err);
+      console.error('[WhatsAppQR] Erro:', err);
+      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setStatus('error');
     }
-  };
+  }, [empresaId, onConnected, startPolling]);
 
   // Atualizar QR Code (caso expire)
   const refreshQRCode = async () => {
@@ -168,6 +208,10 @@ export function WhatsAppQRDialog({
         setPhoneNumber(data.phoneNumber);
         setStatus('connected');
         onConnected(data.phoneNumber);
+        // Fechar popup automaticamente após 2 segundos
+        setTimeout(() => {
+          handleCloseRef.current();
+        }, 2000);
       } else if (data.qrcode?.base64) {
         setQrCode(data.qrcode);
         setStatus('waiting_scan');
@@ -195,16 +239,6 @@ export function WhatsAppQRDialog({
       stopPolling();
     };
   }, [stopPolling]);
-
-  // Reset ao fechar
-  const handleClose = () => {
-    stopPolling();
-    setStatus('idle');
-    setQrCode(null);
-    setError(null);
-    setPhoneNumber(null);
-    onClose();
-  };
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
