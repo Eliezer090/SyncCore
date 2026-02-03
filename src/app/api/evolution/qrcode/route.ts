@@ -70,13 +70,14 @@ export async function GET(request: NextRequest) {
         phoneNumber = infoResult.data.owner.split('@')[0];
         console.log('[Evolution QR Route] Número extraído:', phoneNumber);
         
-        // Atualizar o whatsapp_vinculado se mudou
-        if (phoneNumber && phoneNumber !== empresa.whatsapp_vinculado) {
+        // SEMPRE salvar o número no banco quando conectado (independente se mudou ou não)
+        if (phoneNumber) {
+          console.log('[Evolution QR Route] Salvando número no banco:', phoneNumber);
           await query(
             'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
             [phoneNumber, empresaId]
           );
-          console.log('[Evolution QR Route] Número atualizado no banco');
+          console.log('[Evolution QR Route] Número salvo no banco com sucesso!');
         }
       }
 
