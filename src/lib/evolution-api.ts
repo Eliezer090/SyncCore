@@ -119,18 +119,22 @@ export async function checkInstanceExists(instanceName: string): Promise<Evoluti
     console.log('[Evolution] checkInstanceExists - Resposta (raw):', JSON.stringify(instances).substring(0, 500));
     
     // Normalizar para array
-    const instancesArray: InstanceInfo[] = Array.isArray(instances) ? instances : [instances].filter(Boolean);
+    const instancesArray = Array.isArray(instances) ? instances : [instances].filter(Boolean);
     console.log('[Evolution] checkInstanceExists - Total instâncias:', instancesArray.length);
     
     // Listar nomes das instâncias para debug
-    const names = instancesArray.map((i: InstanceInfo) => i.instanceName || i.instance?.instanceName || 'unknown');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const names = instancesArray.map((i: any) => 
+      i.instanceName || i.instance?.instanceName || 'unknown'
+    );
     console.log('[Evolution] checkInstanceExists - Nomes encontrados:', names);
     
     // Buscar a instância pelo nome (checando diferentes formatos de resposta)
-    const found = instancesArray.find((i: InstanceInfo & { instance?: InstanceInfo }) => 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const found = instancesArray.find((i: any) => 
       i.instanceName === instanceName || 
       i.instance?.instanceName === instanceName
-    );
+    ) as InstanceInfo | undefined;
     
     console.log('[Evolution] checkInstanceExists - Encontrada:', !!found);
     
@@ -280,22 +284,53 @@ export async function getQRCode(instanceName: string): Promise<EvolutionResponse
  * Verifica o estado da conexão
  */
 export async function getConnectionState(instanceName: string): Promise<EvolutionResponse<ConnectionState>> {
+  const url = `${EVOLUTION_API_URL}/instance/connectionState/${instanceName}`;
+  console.log('[Evolution] getConnectionState - URL:', url);
+  
   try {
-    const response = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${instanceName}`, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
     });
 
+    console.log('[Evolution] getConnectionState - Status HTTP:', response.status);
+
     if (!response.ok) {
       const error = await response.text();
-      console.error('[Evolution] Erro ao verificar conexão:', error);
+      console.error('[Evolution] getConnectionState - Erro resposta:', error);
       return { success: false, error: 'Erro ao verificar conexão' };
     }
 
     const data = await response.json();
-    return { success: true, data };
+    console.log('[Evolution] getConnectionState - Resposta raw:', JSON.stringify(data));
+    
+    // A Evolution API retorna no formato: {"instance":{"instanceName":"xxx","state":"open"}}
+    // Precisamos extrair o state corretamente
+    let state: 'open' | 'close' | 'connecting' = 'close';
+    let instance = instanceName;
+    
+    if (data.instance) {
+      // Formato: {"instance":{"instanceName":"xxx","state":"open"}}
+      state = data.instance.state || 'close';
+      instance = data.instance.instanceName || instanceName;
+    } else if (data.state) {
+      // Formato alternativo: {"state":"open","instanceName":"xxx"}
+      state = data.state;
+      instance = data.instanceName || instanceName;
+    }
+    
+    console.log('[Evolution] getConnectionState - State extraído:', state);
+    
+    return { 
+      success: true, 
+      data: {
+        instance,
+        state,
+        statusReason: data.statusReason || data.instance?.statusReason
+      }
+    };
   } catch (error) {
-    console.error('[Evolution] Erro ao verificar conexão:', error);
+    console.error('[Evolution] getConnectionState - Erro catch:', error);
     return { success: false, error: 'Erro de conexão com Evolution API' };
   }
 }
@@ -408,7 +443,7 @@ export async function setupWhatsAppConnection(empresaNome: string, empresaId: nu
   console.log('[Evolution] Passo 1 resultado:', JSON.stringify(existsResult));
   
   // Se falhou em verificar, tentar criar mesmo assim (a criação vai retornar se já existe)
-  let instanceExists = existsResult.success && existsResult.data;
+  let instanceExists: boolean = !!(existsResult.success && existsResult.data);
   
   if (!existsResult.success) {
     console.warn('[Evolution] Passo 1 AVISO: Não foi possível verificar instância, tentando criar...');
