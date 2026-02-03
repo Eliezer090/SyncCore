@@ -18,12 +18,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const body = await request.json();
-    const { produto_id, nome, preco, ativo } = body;
+    const { produto_id, nome, preco } = body;
 
     const result = await queryOne<ProdutoAdicional>(`
-      UPDATE produto_adicionais SET produto_id = $1, nome = $2, preco = $3, ativo = $4
-      WHERE id = $5 RETURNING *
-    `, [produto_id, nome, preco || 0, ativo ?? true, id]);
+      UPDATE produto_adicionais SET produto_id = $1, nome = $2, preco = $3
+      WHERE id = $4 RETURNING *
+    `, [produto_id, nome, preco || 0, id]);
 
     if (!result) return NextResponse.json({ error: 'Adicional não encontrado' }, { status: 404 });
     return NextResponse.json(result);

@@ -42,13 +42,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { produto_id, nome, preco, ativo } = body;
+    const { produto_id, nome, preco } = body;
+
+    if (!produto_id || !nome) {
+      return NextResponse.json({ error: 'produto_id e nome são obrigatórios' }, { status: 400 });
+    }
 
     const result = await query<ProdutoAdicional>(`
-      INSERT INTO produto_adicionais (produto_id, nome, preco, ativo)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO produto_adicionais (produto_id, nome, preco)
+      VALUES ($1, $2, $3)
       RETURNING *
-    `, [produto_id, nome, preco || 0, ativo ?? true]);
+    `, [produto_id, nome, preco || 0]);
 
     return NextResponse.json(result[0], { status: 201 });
   } catch (error) {

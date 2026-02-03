@@ -37,13 +37,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import dayjs from 'dayjs';
 
-import type { EstoqueMovimentacao, Produto } from '@/types/database';
+import type { EstoqueMovimentacao, Produto, ProdutoVariacao, ProdutoAdicional } from '@/types/database';
 import { LoadingOverlay } from '@/components/core/loading-overlay';
 import { useEmpresa } from '@/hooks/use-empresa';
 import { getAuthHeaders } from '@/lib/auth/client';
 
 const schema = z.object({
   produto_id: z.coerce.number().min(1, 'Produto é obrigatório'),
+  variacao_id: z.coerce.number().nullable().optional(),
+  adicional_id: z.coerce.number().nullable().optional(),
   tipo: z.enum(['entrada', 'saida']),
   quantidade: z.coerce.number().min(1, 'Quantidade deve ser maior que zero'),
   motivo: z.string().nullable().optional(),
@@ -53,19 +55,55 @@ type FormData = z.infer<typeof schema>;
 
 export default function EstoquePage(): React.JSX.Element {
   const { empresaId, refreshKey } = useEmpresa();
-  const [movimentacoes, setMovimentacoes] = React.useState<(EstoqueMovimentacao & { produto_nome?: string; empresa_nome?: string })[]>([]);
+  const [movimentacoes, setMovimentacoes] = React.useState<(EstoqueMovimentacao & { 
+    produto_nome?: string; 
+    empresa_nome?: string;
+    variacao_nome?: string | null;
+    adicional_nome?: string | null;
+  })[]>([]);
   const [produtos, setProdutos] = React.useState<Produto[]>([]);
+  const [variacoes, setVariacoes] = React.useState<ProdutoVariacao[]>([]);
+  const [adicionais, setAdicionais] = React.useState<ProdutoAdicional[]>([]);
   const [total, setTotal] = React.useState(0);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const [loadingData, setLoadingData] = React.useState(true);
   const [loadingSave, setLoadingSave] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [selectedProdutoId, setSelectedProdutoId] = React.useState<number | null>(null);
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { produto_id: 0, tipo: 'entrada', quantidade: 1, motivo: '' },
+    defaultValues: { produto_id: 0, variacao_id: null, adicional_id: null, tipo: 'entrada', quantidade: 1, motivo: '' },
   });
+
+  const watchProdutoId = watch('produto_id');
+
+  // Buscar variações e adicionais quando produto muda
+  React.useEffect(() => {
+    if (watchProdutoId && watchProdutoId > 0) {
+      setSelectedProdutoId(watchProdutoId);
+      // Limpar seleções anteriores
+      setValue('variacao_id', null);
+      setValue('adicional_id', null);
+      
+      // Buscar variações do produto
+      fetch(`/api/produto-variacoes?produto_id=${watchProdutoId}&limit=100`, { headers: getAuthHeaders() })
+        .then(res => res.json())
+        .then(data => setVariacoes(data.data || []))
+        .catch(err => console.error('Erro ao buscar variações:', err));
+
+      // Buscar adicionais do produto
+      fetch(`/api/produto-adicionais?produto_id=${watchProdutoId}&limit=100`, { headers: getAuthHeaders() })
+        .then(res => res.json())
+        .then(data => setAdicionais(data.data || []))
+        .catch(err => console.error('Erro ao buscar adicionais:', err));
+    } else {
+      setSelectedProdutoId(null);
+      setVariacoes([]);
+      setAdicionais([]);
+    }
+  }, [watchProdutoId, setValue]);
 
   const fetchMovimentacoes = React.useCallback(async () => {
     setLoadingData(true);
@@ -82,7 +120,7 @@ export default function EstoquePage(): React.JSX.Element {
     } finally {
       setLoadingData(false);
     }
-  }, [page, rowsPerPage, empresaId, refreshKey]); // empresaId e refreshKey como dependências para refetch quando admin muda de empresa
+  }, [page, rowsPerPage, empresaId, refreshKey]);
 
   const fetchProdutos = React.useCallback(async () => {
     try {
@@ -95,7 +133,7 @@ export default function EstoquePage(): React.JSX.Element {
     } catch (error) {
       console.error('Erro ao buscar produtos:', error);
     }
-  }, [empresaId, refreshKey]); // empresaId e refreshKey como dependências para refetch quando admin muda de empresa
+  }, [empresaId, refreshKey]);
 
   React.useEffect(() => {
     fetchMovimentacoes();
@@ -103,19 +141,31 @@ export default function EstoquePage(): React.JSX.Element {
   }, [fetchMovimentacoes, fetchProdutos]);
 
   const handleOpenDialog = () => {
-    reset({ produto_id: 0, tipo: 'entrada', quantidade: 1, motivo: '' });
+    reset({ produto_id: 0, variacao_id: null, adicional_id: null, tipo: 'entrada', quantidade: 1, motivo: '' });
+    setVariacoes([]);
+    setAdicionais([]);
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
-    reset({ produto_id: 0, tipo: 'entrada', quantidade: 1, motivo: '' });
+    reset({ produto_id: 0, variacao_id: null, adicional_id: null, tipo: 'entrada', quantidade: 1, motivo: '' });
+    setVariacoes([]);
+    setAdicionais([]);
   };
 
   const onSubmit = async (data: FormData) => {
     setLoadingSave(true);
     try {
-      const response = await fetch('/api/estoque', { method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      const response = await fetch('/api/estoque', { 
+        method: 'POST', 
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({
+          ...data,
+          variacao_id: data.variacao_id || null,
+          adicional_id: data.adicional_id || null,
+        }) 
+      });
       if (response.ok) { handleCloseDialog(); fetchMovimentacoes(); }
     } catch (error) {
       console.error('Erro ao salvar movimentação:', error);
@@ -148,6 +198,8 @@ export default function EstoquePage(): React.JSX.Element {
             <TableHead>
               <TableRow>
                 <TableCell>Produto</TableCell>
+                <TableCell>Variação</TableCell>
+                <TableCell>Adicional</TableCell>
                 <TableCell>Empresa</TableCell>
                 <TableCell>Tipo</TableCell>
                 <TableCell>Quantidade</TableCell>
@@ -160,6 +212,8 @@ export default function EstoquePage(): React.JSX.Element {
               {movimentacoes.map((row) => (
                 <TableRow hover key={row.id}>
                   <TableCell><Typography variant="subtitle2">{row.produto_nome || '-'}</Typography></TableCell>
+                  <TableCell>{row.variacao_nome || '-'}</TableCell>
+                  <TableCell>{row.adicional_nome || '-'}</TableCell>
                   <TableCell>{row.empresa_nome || '-'}</TableCell>
                   <TableCell><Chip label={row.tipo === 'entrada' ? 'Entrada' : 'Saída'} size="small" color={row.tipo === 'entrada' ? 'success' : 'error'} /></TableCell>
                   <TableCell>{row.quantidade}</TableCell>
@@ -204,6 +258,48 @@ export default function EstoquePage(): React.JSX.Element {
                       />
                     )} />
                   </Grid>
+                  {variacoes.length > 0 && (
+                    <Grid size={12}>
+                      <Controller name="variacao_id" control={control} render={({ field }) => (
+                        <Autocomplete
+                          options={variacoes}
+                          getOptionLabel={(option) => `${option.nome}${option.estoque_atual !== undefined ? ` (Estoque: ${option.estoque_atual})` : ''}`}
+                          value={variacoes.find(v => v.id === field.value) || null}
+                          onChange={(_, newValue) => field.onChange(newValue?.id || null)}
+                          isOptionEqualToValue={(option, value) => option.id === value.id}
+                          renderInput={(params) => (
+                            <TextField 
+                              {...params} 
+                              label="Variação (opcional)" 
+                              placeholder="Ex: Tamanho M, Cor Preta"
+                            />
+                          )}
+                          noOptionsText="Nenhuma variação encontrada"
+                        />
+                      )} />
+                    </Grid>
+                  )}
+                  {adicionais.length > 0 && (
+                    <Grid size={12}>
+                      <Controller name="adicional_id" control={control} render={({ field }) => (
+                        <Autocomplete
+                          options={adicionais}
+                          getOptionLabel={(option) => `${option.nome}${option.estoque_atual !== undefined ? ` (Estoque: ${option.estoque_atual})` : ''}`}
+                          value={adicionais.find(a => a.id === field.value) || null}
+                          onChange={(_, newValue) => field.onChange(newValue?.id || null)}
+                          isOptionEqualToValue={(option, value) => option.id === value.id}
+                          renderInput={(params) => (
+                            <TextField 
+                              {...params} 
+                              label="Adicional (opcional)" 
+                              placeholder="Ex: Cinto, Bolsa"
+                            />
+                          )}
+                          noOptionsText="Nenhum adicional encontrado"
+                        />
+                      )} />
+                    </Grid>
+                  )}
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Controller name="tipo" control={control} render={({ field }) => (
                       <FormControl fullWidth>

@@ -136,6 +136,8 @@ export interface Pedido {
 export interface EstoqueMovimentacao {
   id: number;
   produto_id: number;
+  variacao_id: number | null;
+  adicional_id: number | null;
   tipo: 'entrada' | 'saida';
   quantidade: number;
   motivo: string | null;
@@ -147,6 +149,8 @@ export interface ProdutoAdicional {
   produto_id: number;
   nome: string;
   preco: number;
+  controla_estoque: boolean;
+  estoque_atual: number;
 }
 
 export interface ProdutoImagem {
@@ -162,6 +166,8 @@ export interface ProdutoVariacao {
   produto_id: number;
   nome: string;
   preco_adicional: number;
+  controla_estoque: boolean;
+  estoque_atual: number;
 }
 
 export interface Pagamento {
