@@ -337,68 +337,120 @@ export async function getConnectionState(instanceName: string): Promise<Evolutio
 
 /**
  * Obtém informações da instância conectada (incluindo número do WhatsApp)
+ * Tenta múltiplas rotas da Evolution API para obter o número
  */
 export async function getInstanceInfo(instanceName: string): Promise<EvolutionResponse<InstanceInfo>> {
-  const url = `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instanceName}`;
-  console.log('[Evolution] getInstanceInfo - URL:', url);
+  console.log('[Evolution] getInstanceInfo - Buscando info para:', instanceName);
   
   try {
-    const response = await fetch(url, {
+    // Primeiro, tentar a rota fetchInstances
+    const url1 = `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${instanceName}`;
+    console.log('[Evolution] getInstanceInfo - Tentando URL 1:', url1);
+    
+    const response1 = await fetch(url1, {
       method: 'GET',
       headers: getHeaders(),
     });
 
-    console.log('[Evolution] getInstanceInfo - Status:', response.status);
+    let owner: string | undefined;
+    let profileName: string | undefined;
+    let profilePictureUrl: string | undefined;
+    let status: string = 'unknown';
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[Evolution] getInstanceInfo - Erro resposta:', error);
-      return { success: false, error: 'Erro ao obter informações' };
-    }
-
-    const data = await response.json();
-    console.log('[Evolution] getInstanceInfo - Resposta raw:', JSON.stringify(data).substring(0, 500));
-    
-    // A resposta pode ser um array ou um objeto
-    let instance: InstanceInfo | null = null;
-    
-    if (Array.isArray(data)) {
-      // Buscar no array
-      instance = data.find((i: InstanceInfo & { instance?: InstanceInfo }) => 
-        i.instanceName === instanceName || 
-        i.instance?.instanceName === instanceName
-      );
+    if (response1.ok) {
+      const data1 = await response1.json();
+      console.log('[Evolution] getInstanceInfo - Resposta fetchInstances:', JSON.stringify(data1, null, 2));
       
-      // Se encontrou no formato { instance: {...} }, extrair
-      if (instance && (instance as unknown as { instance?: InstanceInfo }).instance) {
-        const nested = instance as unknown as { instance: InstanceInfo };
-        instance = { ...nested.instance, ...instance };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let rawInstance: any = null;
+      
+      if (Array.isArray(data1)) {
+        rawInstance = data1.find((i) => 
+          i.instanceName === instanceName || 
+          i.instance?.instanceName === instanceName ||
+          i.name === instanceName
+        );
+      } else if (data1 && typeof data1 === 'object') {
+        rawInstance = data1;
       }
-    } else if (data && typeof data === 'object') {
-      // Pode ser um objeto único
-      if (data.instanceName === instanceName) {
-        instance = data;
-      } else if (data.instance?.instanceName === instanceName) {
-        instance = data.instance;
+      
+      if (rawInstance) {
+        // Tentar extrair owner de diferentes caminhos
+        owner = rawInstance.owner || 
+                rawInstance.instance?.owner || 
+                rawInstance.ownerJid || 
+                rawInstance.instance?.ownerJid ||
+                rawInstance.wuid;
+        profileName = rawInstance.profileName || rawInstance.instance?.profileName || rawInstance.pushname;
+        profilePictureUrl = rawInstance.profilePictureUrl || rawInstance.instance?.profilePictureUrl;
+        status = rawInstance.status || rawInstance.instance?.status || rawInstance.connectionStatus || 'unknown';
       }
     }
     
-    console.log('[Evolution] getInstanceInfo - Instância encontrada:', !!instance);
-    if (instance) {
-      console.log('[Evolution] getInstanceInfo - owner:', instance.owner);
-      console.log('[Evolution] getInstanceInfo - status:', instance.status);
+    // Se não conseguiu o owner, tentar a rota de connectionState que às vezes retorna mais info
+    if (!owner) {
+      const url2 = `${EVOLUTION_API_URL}/instance/connectionState/${instanceName}`;
+      console.log('[Evolution] getInstanceInfo - Tentando URL 2:', url2);
+      
+      const response2 = await fetch(url2, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+      
+      if (response2.ok) {
+        const data2 = await response2.json();
+        console.log('[Evolution] getInstanceInfo - Resposta connectionState:', JSON.stringify(data2, null, 2));
+        
+        // Tentar extrair de instance.owner ou instance.wuid
+        owner = data2.instance?.owner || data2.owner || data2.instance?.wuid || data2.wuid;
+        status = data2.instance?.state || data2.state || status;
+      }
     }
     
-    if (!instance) {
-      return { success: false, error: 'Instância não encontrada' };
+    // Se ainda não conseguiu, tentar a rota específica de me/profile (algumas versões da Evolution)
+    if (!owner) {
+      const url3 = `${EVOLUTION_API_URL}/chat/whatsappNumber/${instanceName}`;
+      console.log('[Evolution] getInstanceInfo - Tentando URL 3:', url3);
+      
+      try {
+        const response3 = await fetch(url3, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ numbers: ['me'] }),
+        });
+        
+        if (response3.ok) {
+          const data3 = await response3.json();
+          console.log('[Evolution] getInstanceInfo - Resposta whatsappNumber:', JSON.stringify(data3, null, 2));
+          
+          if (Array.isArray(data3) && data3.length > 0) {
+            owner = data3[0].jid || data3[0].number;
+          }
+        }
+      } catch (e) {
+        console.log('[Evolution] getInstanceInfo - URL 3 falhou (esperado em algumas versões)');
+      }
     }
-
+    
+    console.log('[Evolution] getInstanceInfo - owner final:', owner);
+    console.log('[Evolution] getInstanceInfo - status final:', status);
+    
+    // Construir objeto InstanceInfo
+    const instance: InstanceInfo = {
+      instanceName: instanceName,
+      status: status,
+      owner: owner,
+      profileName: profileName,
+      profilePictureUrl: profilePictureUrl,
+    };
+    
     return { success: true, data: instance };
   } catch (error) {
     console.error('[Evolution] getInstanceInfo - Erro catch:', error);
     return { success: false, error: 'Erro de conexão com Evolution API' };
   }
 }
+
 
 /**
  * Desconecta uma instância (logout)
