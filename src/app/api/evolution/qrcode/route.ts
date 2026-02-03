@@ -57,10 +57,12 @@ export async function GET(request: NextRequest) {
     
     const isConnected = stateResult.success && stateResult.data?.state === 'open';
 
-    // Se já está conectado
+    // Se já está conectado, SEMPRE buscar as informações da instância (mesmo se action=status)
     if (isConnected) {
       console.log('[Evolution QR Route] Instância conectada, buscando info...');
       let phoneNumber: string | null = null;
+      
+      // Buscar informações da instância
       const infoResult = await getInstanceInfo(instanceName);
       console.log('[Evolution QR Route] Info da instância:', JSON.stringify(infoResult));
       
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Se quer apenas status
+    // Se quer apenas status e NÃO está conectado
     if (action === 'status') {
       return NextResponse.json({
         connected: false,
@@ -120,6 +122,8 @@ export async function GET(request: NextRequest) {
 
 // PUT - Confirmar conexão e salvar número
 export async function PUT(request: NextRequest) {
+  console.log('[Evolution QR Route PUT] ====== Iniciando confirmação ======');
+  
   try {
     // Verificar autenticação
     const { user, error } = getAuthUser(request);
@@ -129,6 +133,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { empresa_id } = body;
+    console.log('[Evolution QR Route PUT] empresa_id:', empresa_id);
 
     if (!empresa_id) {
       return NextResponse.json({ error: 'empresa_id é obrigatório' }, { status: 400 });
@@ -151,9 +156,12 @@ export async function PUT(request: NextRequest) {
 
     const empresa = empresaResult[0];
     const instanceName = `empresa_${empresa.id}_${sanitizeInstanceName(empresa.nome)}`;
+    console.log('[Evolution QR Route PUT] instanceName:', instanceName);
 
     // Verificar se conectou
+    console.log('[Evolution QR Route PUT] Verificando estado da conexão...');
     const stateResult = await getConnectionState(instanceName);
+    console.log('[Evolution QR Route PUT] Estado:', JSON.stringify(stateResult));
     
     if (!stateResult.success || stateResult.data?.state !== 'open') {
       return NextResponse.json({
@@ -164,9 +172,12 @@ export async function PUT(request: NextRequest) {
     }
 
     // Buscar número do WhatsApp
+    console.log('[Evolution QR Route PUT] Buscando info da instância...');
     const infoResult = await getInstanceInfo(instanceName);
+    console.log('[Evolution QR Route PUT] Info resultado:', JSON.stringify(infoResult));
     
     if (!infoResult.success || !infoResult.data?.owner) {
+      console.log('[Evolution QR Route PUT] Owner não encontrado na resposta');
       return NextResponse.json({
         success: false,
         connected: true,
@@ -175,12 +186,14 @@ export async function PUT(request: NextRequest) {
     }
 
     const phoneNumber = infoResult.data.owner.split('@')[0];
+    console.log('[Evolution QR Route PUT] Número extraído:', phoneNumber);
 
     // Salvar no banco
     await query(
       'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
       [phoneNumber, empresa_id]
     );
+    console.log('[Evolution QR Route PUT] Número salvo no banco!');
 
     return NextResponse.json({
       success: true,
@@ -189,7 +202,7 @@ export async function PUT(request: NextRequest) {
       message: 'WhatsApp vinculado com sucesso!',
     });
   } catch (error) {
-    console.error('[Evolution QR Route] Erro:', error);
+    console.error('[Evolution QR Route PUT] Erro:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
