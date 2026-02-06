@@ -27,6 +27,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { WhatsappLogo as WhatsAppIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
 import { CheckCircle as CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { LinkSimple as LinkIcon } from '@phosphor-icons/react/dist/ssr/LinkSimple';
+import { LinkBreak as LinkBreakIcon } from '@phosphor-icons/react/dist/ssr/LinkBreak';
 
 import type { Empresa } from '@/types/database';
 import { ImageUpload } from '@/components/core/image-upload';
@@ -61,6 +62,7 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
   const [whatsappDialogOpen, setWhatsappDialogOpen] = React.useState(false);
   const [checkingConnection, setCheckingConnection] = React.useState(false);
   const [isWhatsappConnected, setIsWhatsappConnected] = React.useState(false);
+  const [disconnecting, setDisconnecting] = React.useState(false);
 
   const {
     control,
@@ -142,6 +144,38 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
     console.log('[EmpresaForm] WhatsApp conectado com número:', phoneNumber);
     setValue('whatsapp_vinculado', phoneNumber, { shouldDirty: true, shouldTouch: true });
     setIsWhatsappConnected(true);
+  };
+
+  // Handler para desvincular WhatsApp
+  const handleDisconnectWhatsApp = async () => {
+    if (!empresa?.id) return;
+    
+    if (!confirm('Tem certeza que deseja desvincular o WhatsApp desta empresa? O número será removido e você precisará vincular novamente.')) {
+      return;
+    }
+
+    setDisconnecting(true);
+    try {
+      const response = await fetch(`/api/evolution?empresa_id=${empresa.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      if (response.ok) {
+        setValue('whatsapp_vinculado', '', { shouldDirty: true, shouldTouch: true });
+        setIsWhatsappConnected(false);
+        console.log('[EmpresaForm] WhatsApp desvinculado com sucesso');
+      } else {
+        const data = await response.json();
+        console.error('[EmpresaForm] Erro ao desvincular:', data.error);
+        alert('Erro ao desvincular WhatsApp: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (err) {
+      console.error('[EmpresaForm] Erro ao desvincular WhatsApp:', err);
+      alert('Erro ao desvincular WhatsApp');
+    } finally {
+      setDisconnecting(false);
+    }
   };
 
   return (
@@ -230,25 +264,42 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
                       }}
                       endAdornment={
                         <InputAdornment position="end">
-                          {checkingConnection ? (
+                          {checkingConnection || disconnecting ? (
                             <CircularProgress size={20} />
                           ) : empresa?.id ? (
-                            <Tooltip title={isWhatsappConnected ? 'WhatsApp conectado' : 'Conectar WhatsApp'}>
-                              <IconButton
-                                onClick={() => setWhatsappDialogOpen(true)}
-                                edge="end"
-                                sx={{
-                                  color: isWhatsappConnected ? '#25D366' : 'text.secondary',
-                                  '&:hover': { color: '#25D366' },
-                                }}
-                              >
-                                {isWhatsappConnected ? (
-                                  <CheckCircleIcon size={24} weight="fill" />
-                                ) : (
-                                  <WhatsAppIcon size={24} weight="fill" />
-                                )}
-                              </IconButton>
-                            </Tooltip>
+                            <>
+                              <Tooltip title={isWhatsappConnected ? 'WhatsApp conectado' : 'Conectar WhatsApp'}>
+                                <IconButton
+                                  onClick={() => setWhatsappDialogOpen(true)}
+                                  edge="end"
+                                  sx={{
+                                    color: isWhatsappConnected ? '#25D366' : 'text.secondary',
+                                    '&:hover': { color: '#25D366' },
+                                  }}
+                                >
+                                  {isWhatsappConnected ? (
+                                    <CheckCircleIcon size={24} weight="fill" />
+                                  ) : (
+                                    <WhatsAppIcon size={24} weight="fill" />
+                                  )}
+                                </IconButton>
+                              </Tooltip>
+                              {isWhatsappConnected && (
+                                <Tooltip title="Desvincular WhatsApp">
+                                  <IconButton
+                                    onClick={handleDisconnectWhatsApp}
+                                    edge="end"
+                                    sx={{
+                                      color: 'error.main',
+                                      '&:hover': { color: 'error.dark' },
+                                      ml: 0.5,
+                                    }}
+                                  >
+                                    <LinkBreakIcon size={22} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </>
                           ) : (
                             <Tooltip title="Salve a empresa primeiro para conectar o WhatsApp">
                               <span>

@@ -31,6 +31,7 @@ import MenuItem from '@mui/material/MenuItem';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import Select from '@mui/material/Select';
 import { PlusIcon } from '@phosphor-icons/react/dist/ssr/Plus';
+import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
 import { TrashIcon } from '@phosphor-icons/react/dist/ssr/Trash';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -71,6 +72,7 @@ export default function EstoquePage(): React.JSX.Element {
   const [loadingSave, setLoadingSave] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [selectedProdutoId, setSelectedProdutoId] = React.useState<number | null>(null);
+  const [selectedMovimentacao, setSelectedMovimentacao] = React.useState<EstoqueMovimentacao | null>(null);
 
   const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -140,15 +142,40 @@ export default function EstoquePage(): React.JSX.Element {
     fetchProdutos();
   }, [fetchMovimentacoes, fetchProdutos]);
 
-  const handleOpenDialog = () => {
-    reset({ produto_id: 0, variacao_id: null, adicional_id: null, tipo: 'entrada', quantidade: 1, motivo: '' });
-    setVariacoes([]);
-    setAdicionais([]);
+  const handleOpenDialog = (movimentacao?: EstoqueMovimentacao & { produto_nome?: string }) => {
+    if (movimentacao) {
+      setSelectedMovimentacao(movimentacao);
+      reset({
+        produto_id: movimentacao.produto_id,
+        variacao_id: movimentacao.variacao_id || null,
+        adicional_id: movimentacao.adicional_id || null,
+        tipo: movimentacao.tipo,
+        quantidade: movimentacao.quantidade,
+        motivo: movimentacao.motivo || '',
+      });
+      // Carregar variações e adicionais do produto
+      if (movimentacao.produto_id) {
+        fetch(`/api/produto-variacoes?produto_id=${movimentacao.produto_id}&limit=100`, { headers: getAuthHeaders() })
+          .then(res => res.json())
+          .then(data => setVariacoes(data.data || []))
+          .catch(err => console.error('Erro ao buscar variações:', err));
+        fetch(`/api/produto-adicionais?produto_id=${movimentacao.produto_id}&limit=100`, { headers: getAuthHeaders() })
+          .then(res => res.json())
+          .then(data => setAdicionais(data.data || []))
+          .catch(err => console.error('Erro ao buscar adicionais:', err));
+      }
+    } else {
+      setSelectedMovimentacao(null);
+      reset({ produto_id: 0, variacao_id: null, adicional_id: null, tipo: 'entrada', quantidade: 1, motivo: '' });
+      setVariacoes([]);
+      setAdicionais([]);
+    }
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+    setSelectedMovimentacao(null);
     reset({ produto_id: 0, variacao_id: null, adicional_id: null, tipo: 'entrada', quantidade: 1, motivo: '' });
     setVariacoes([]);
     setAdicionais([]);
@@ -157,8 +184,10 @@ export default function EstoquePage(): React.JSX.Element {
   const onSubmit = async (data: FormData) => {
     setLoadingSave(true);
     try {
-      const response = await fetch('/api/estoque', { 
-        method: 'POST', 
+      const url = selectedMovimentacao ? `/api/estoque/${selectedMovimentacao.id}` : '/api/estoque';
+      const method = selectedMovimentacao ? 'PUT' : 'POST';
+      const response = await fetch(url, { 
+        method, 
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, 
         body: JSON.stringify({
           ...data,
@@ -220,6 +249,7 @@ export default function EstoquePage(): React.JSX.Element {
                   <TableCell>{row.motivo || '-'}</TableCell>
                   <TableCell>{dayjs(row.criado_em).format('DD/MM/YYYY HH:mm')}</TableCell>
                   <TableCell align="right">
+                    <Tooltip title="Editar"><IconButton onClick={() => handleOpenDialog(row)}><PencilSimpleIcon /></IconButton></Tooltip>
                     <Tooltip title="Excluir"><IconButton onClick={() => handleDelete(row.id)} color="error"><TrashIcon /></IconButton></Tooltip>
                   </TableCell>
                 </TableRow>
@@ -234,7 +264,7 @@ export default function EstoquePage(): React.JSX.Element {
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             <Card>
-              <CardHeader title="Nova Movimentação de Estoque" />
+              <CardHeader title={selectedMovimentacao ? 'Editar Movimentação de Estoque' : 'Nova Movimentação de Estoque'} />
               <Divider />
               <CardContent>
                 <Grid container spacing={3}>
