@@ -70,14 +70,24 @@ export async function GET(request: NextRequest) {
         phoneNumber = infoResult.data.owner.split('@')[0];
         console.log('[Evolution QR Route] Número extraído:', phoneNumber);
         
-        // SEMPRE salvar o número no banco quando conectado (independente se mudou ou não)
+        // Verificar se o número já está vinculado a outra empresa
         if (phoneNumber) {
-          console.log('[Evolution QR Route] Salvando número no banco:', phoneNumber);
-          await query(
-            'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
+          const existingResult = await query<{ id: number; nome: string }>(
+            'SELECT id, nome FROM empresas WHERE whatsapp_vinculado = $1 AND id != $2',
             [phoneNumber, empresaId]
           );
-          console.log('[Evolution QR Route] Número salvo no banco com sucesso!');
+          
+          if (existingResult.length > 0) {
+            console.warn('[Evolution QR Route] Número já vinculado a outra empresa:', existingResult[0].nome);
+            // Não falha, apenas não atualiza
+          } else {
+            console.log('[Evolution QR Route] Salvando número no banco:', phoneNumber);
+            await query(
+              'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
+              [phoneNumber, empresaId]
+            );
+            console.log('[Evolution QR Route] Número salvo no banco com sucesso!');
+          }
         }
       }
 
@@ -188,6 +198,21 @@ export async function PUT(request: NextRequest) {
 
     const phoneNumber = infoResult.data.owner.split('@')[0];
     console.log('[Evolution QR Route PUT] Número extraído:', phoneNumber);
+
+    // Verificar se o número já está vinculado a outra empresa
+    const existingResult = await query<{ id: number; nome: string }>(
+      'SELECT id, nome FROM empresas WHERE whatsapp_vinculado = $1 AND id != $2',
+      [phoneNumber, empresa_id]
+    );
+    
+    if (existingResult.length > 0) {
+      console.warn('[Evolution QR Route PUT] Número já vinculado a outra empresa:', existingResult[0].nome);
+      return NextResponse.json({
+        success: false,
+        connected: true,
+        error: `Este número já está vinculado à empresa "${existingResult[0].nome}". Desvincule primeiro antes de usar em outra empresa.`,
+      });
+    }
 
     // Salvar no banco
     await query(

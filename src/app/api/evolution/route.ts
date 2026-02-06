@@ -80,11 +80,22 @@ export async function POST(request: NextRequest) {
         
         // Atualizar o whatsapp_vinculado se necessário
         if (phoneNumber && phoneNumber !== empresa.whatsapp_vinculado) {
-          await query(
-            'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
+          // Verificar se o número já está vinculado a outra empresa
+          const existingResult = await query<{ id: number; nome: string }>(
+            'SELECT id, nome FROM empresas WHERE whatsapp_vinculado = $1 AND id != $2',
             [phoneNumber, empresa_id]
           );
-          console.log('[Evolution Route] Número atualizado no banco:', phoneNumber);
+          
+          if (existingResult.length > 0) {
+            console.warn('[Evolution Route] Número já vinculado a outra empresa:', existingResult[0].nome);
+            // Não falha, apenas não atualiza
+          } else {
+            await query(
+              'UPDATE empresas SET whatsapp_vinculado = $1 WHERE id = $2',
+              [phoneNumber, empresa_id]
+            );
+            console.log('[Evolution Route] Número atualizado no banco:', phoneNumber);
+          }
         }
       }
       
