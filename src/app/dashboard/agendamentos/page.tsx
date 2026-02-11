@@ -542,23 +542,29 @@ export default function AgendamentosPage(): React.JSX.Element {
     }
   };
 
-  // Converte data UTC da API para Date local (ignora timezone e usa os valores como locais)
+  // Converte data da API para Date local (usa os valores exatos do banco sem conversão de timezone)
   const parseToLocalDate = (dateStr: string | Date): Date => {
     if (dateStr instanceof Date) return dateStr;
     
     // A API retorna ex: "2026-01-26T14:00:00.000Z" mas queremos tratar 14:00 como horário local
-    // Primeiro convertemos UTC para local usando dayjs
-    const localMoment = dayjs(dateStr);
+    // Extraímos os valores diretamente da string ISO sem conversão de timezone
+    const isoString = typeof dateStr === 'string' ? dateStr : String(dateStr);
+    const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
     
-    // Criamos uma nova Date usando os componentes locais
-    return new Date(
-      localMoment.year(),
-      localMoment.month(),
-      localMoment.date(),
-      localMoment.hour(),
-      localMoment.minute(),
-      localMoment.second()
-    );
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match;
+      return new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1, // mês é 0-indexed
+        parseInt(day, 10),
+        parseInt(hour, 10),
+        parseInt(minute, 10),
+        parseInt(second, 10)
+      );
+    }
+    
+    // Fallback para parsing padrão se o formato não bater
+    return new Date(dateStr);
   };
 
   const events: CalendarEvent[] = agendamentos.map((ag) => ({
