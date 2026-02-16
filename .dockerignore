@@ -36,6 +36,7 @@ __tests__
 
 # Scripts de desenvolvimento
 scripts/
+!scripts/startup.sh
 
 # Logs
 *.log

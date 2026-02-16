@@ -46,6 +46,14 @@ async function processarAtendimentoHumano(message: AtendimentoHumanoMessage): Pr
     const nomeCliente = cliente?.nome || cliente?.telefone || `Cliente #${cliente_id}`;
     logConsumer('info', `Cliente encontrado: ${nomeCliente}`);
 
+    // Desativar IA para este cliente (atendimento humano assumindo)
+    logConsumer('info', 'Desativando IA para o cliente...');
+    await query(
+      'UPDATE clientes_empresas SET ia_ativa = false WHERE cliente_id = $1 AND empresa_id = $2',
+      [cliente_id, empresa_id]
+    );
+    logConsumer('info', `IA desativada para cliente ${cliente_id} na empresa ${empresa_id}`);
+
     // Criar mensagem
     const mensagem = `${nomeCliente} está solicitando atendimento humano`;
 
