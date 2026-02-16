@@ -34,8 +34,6 @@ const config = {
   experimental: {
     // Força o uso apenas do App Router
     appDocumentPreloading: false,
-    // Habilitar instrumentation hook para iniciar serviços de background (RabbitMQ consumer)
-    instrumentationHook: true,
   },
 };
 
