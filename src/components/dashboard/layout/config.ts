@@ -96,7 +96,7 @@ const navGroupsBase: NavGroupConfig[] = [
     key: 'comunicacao',
     title: 'Comunicação',
     items: [
-      { key: 'historico-conversas', title: 'Histórico Conversas', href: paths.dashboard.historicoConversas, icon: 'chat-circle' },
+      { key: 'chat', title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo' },
     ],
   },
 

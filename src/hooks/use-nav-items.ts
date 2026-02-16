@@ -53,7 +53,6 @@ const recursoToNavItem: Record<string, {
   'agendamento-servicos': { title: 'Serviços do Agend.', href: paths.dashboard.agendamentoServicos, icon: 'calendar', grupo: 'Serviços & Agenda', subGrupo: 'Agenda', modeloNegocio: 'servico' },
   
   // Comunicação
-  'historico-conversas': { title: 'Histórico Conversas', href: paths.dashboard.historicoConversas, icon: 'chat-circle', grupo: 'Comunicação' },
   'chat': { title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo', grupo: 'Comunicação' },
   
   // Configurações
@@ -352,7 +351,6 @@ function gerarMenuCompleto(modeloNegocio?: ModeloNegocio): NavGroupConfig[] {
       key: 'comunicacao',
       title: 'Comunicação',
       items: [
-        { key: 'historico-conversas', title: 'Histórico Conversas', href: paths.dashboard.historicoConversas, icon: 'chat-circle' },
         { key: 'chat', title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo' },
       ],
     },

@@ -17,26 +17,17 @@ import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
 import LinearProgress from '@mui/material/LinearProgress';
 import CircularProgress from '@mui/material/CircularProgress';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
-import IconButton from '@mui/material/IconButton';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { Users as UsersIcon } from '@phosphor-icons/react/dist/ssr/Users';
 import { ShoppingCart as ShoppingCartIcon } from '@phosphor-icons/react/dist/ssr/ShoppingCart';
 import { Calendar as CalendarIcon } from '@phosphor-icons/react/dist/ssr/Calendar';
 import { CurrencyDollar as CurrencyDollarIcon } from '@phosphor-icons/react/dist/ssr/CurrencyDollar';
 import { Package as PackageIcon } from '@phosphor-icons/react/dist/ssr/Package';
-import { ChatCircle as ChatCircleIcon } from '@phosphor-icons/react/dist/ssr/ChatCircle';
+import { WhatsappLogo as WhatsappLogoIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
 import { Scissors as ScissorsIcon } from '@phosphor-icons/react/dist/ssr/Scissors';
 import { Buildings as BuildingsIcon } from '@phosphor-icons/react/dist/ssr/Buildings';
-import { X as XIcon } from '@phosphor-icons/react/dist/ssr/X';
-import { Robot as RobotIcon } from '@phosphor-icons/react/dist/ssr/Robot';
-import { User as UserIcon } from '@phosphor-icons/react/dist/ssr/User';
 
 import { useUser } from '@/hooks/use-user';
 import { useEmpresa } from '@/hooks/use-empresa';
@@ -44,6 +35,7 @@ import { getAuthHeaders } from '@/lib/auth/client';
 import { paths } from '@/paths';
 
 dayjs.locale('pt-br');
+dayjs.extend(relativeTime);
 
 interface DashboardStats {
   totalClientes: number;
@@ -76,20 +68,19 @@ interface RecentAgendamento {
   status: string;
 }
 
-interface SessionSummary {
-  session_id: string;
-  total_messages: number;
-  preview: string;
-}
-
-interface HistoricoConversa {
-  id: number;
-  session_id: string;
-  message: {
-    role?: string;
-    content?: string;
-    [key: string]: unknown;
-  };
+interface WhatsAppConversa {
+  remoteJid: string;
+  pushName: string;
+  profilePicUrl: string | null;
+  unreadMessages: number;
+  lastMessage: {
+    messageType: string;
+    messageTimestamp: number;
+    pushName: string;
+    fromMe: boolean;
+    text: string;
+  } | null;
+  updatedAt: string | null;
 }
 
 const statusColors: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
@@ -110,14 +101,8 @@ export default function DashboardPage(): React.JSX.Element {
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [recentPedidos, setRecentPedidos] = React.useState<RecentPedido[]>([]);
   const [recentAgendamentos, setRecentAgendamentos] = React.useState<RecentAgendamento[]>([]);
-  const [recentSessions, setRecentSessions] = React.useState<SessionSummary[]>([]);
+  const [recentConversas, setRecentConversas] = React.useState<WhatsAppConversa[]>([]);
   const [loading, setLoading] = React.useState(true);
-  
-  // Estado do chat dialog
-  const [chatOpen, setChatOpen] = React.useState(false);
-  const [chatMessages, setChatMessages] = React.useState<HistoricoConversa[]>([]);
-  const [selectedSession, setSelectedSession] = React.useState<string | null>(null);
-  const [loadingChat, setLoadingChat] = React.useState(false);
 
   // Redirecionar profissional para seu dashboard personalizado
   React.useEffect(() => {
@@ -146,7 +131,7 @@ export default function DashboardPage(): React.JSX.Element {
           produtosRes,
           servicosRes,
           empresasRes,
-          sessionsRes,
+          conversasRes,
         ] = await Promise.all([
           fetch('/api/clientes?limit=1', { headers }),
           fetch('/api/pedidos?limit=10', { headers }),
@@ -154,17 +139,17 @@ export default function DashboardPage(): React.JSX.Element {
           fetch('/api/produtos?limit=1', { headers }),
           fetch('/api/servicos?limit=1', { headers }),
           fetch('/api/empresas?limit=1', { headers }),
-          fetch('/api/historico-conversas/sessions?limit=5', { headers }),
+          fetch('/api/chat/conversas', { headers }),
         ]);
 
-        const [clientes, pedidos, agendamentos, produtos, servicos, empresas, sessions] = await Promise.all([
+        const [clientes, pedidos, agendamentos, produtos, servicos, empresas, conversas] = await Promise.all([
           clientesRes.json(),
           pedidosRes.json(),
           agendamentosRes.json(),
           produtosRes.json(),
           servicosRes.json(),
           empresasRes.json(),
-          sessionsRes.json(),
+          conversasRes.json(),
         ]);
 
         const hoje = dayjs().format('YYYY-MM-DD');
@@ -198,7 +183,7 @@ export default function DashboardPage(): React.JSX.Element {
           totalProdutos: produtos.total || 0,
           totalServicos: servicos.total || 0,
           totalEmpresas: empresas.total || 0,
-          totalConversas: sessions.total || 0,
+          totalConversas: (conversas.chats || []).length,
           faturamentoTotal,
           pedidosHoje,
           agendamentosHoje,
@@ -208,7 +193,7 @@ export default function DashboardPage(): React.JSX.Element {
 
         setRecentPedidos(pedidosData.slice(0, 5));
         setRecentAgendamentos(agendamentosData.slice(0, 5));
-        setRecentSessions(sessions.data || []);
+        setRecentConversas((conversas.chats || []).slice(0, 5));
       } catch (error) {
         console.error('Erro ao carregar dashboard:', error);
       } finally {
@@ -218,32 +203,6 @@ export default function DashboardPage(): React.JSX.Element {
 
     fetchDashboardData();
   }, [refreshKey]); // refreshKey para recarregar quando empresa muda
-
-  const handleOpenChat = async (sessionId: string) => {
-    setSelectedSession(sessionId);
-    setChatOpen(true);
-    setLoadingChat(true);
-    
-    try {
-      const response = await fetch(`/api/historico-conversas?session_id=${sessionId}&limit=100`, {
-        headers: getAuthHeaders(),
-      });
-      const data = await response.json();
-      // Ordenar por ID crescente para mostrar as mensagens na ordem correta
-      const sortedMessages = (data.data || []).sort((a: HistoricoConversa, b: HistoricoConversa) => a.id - b.id);
-      setChatMessages(sortedMessages);
-    } catch (error) {
-      console.error('Erro ao carregar chat:', error);
-    } finally {
-      setLoadingChat(false);
-    }
-  };
-
-  const handleCloseChat = () => {
-    setChatOpen(false);
-    setChatMessages([]);
-    setSelectedSession(null);
-  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -288,7 +247,7 @@ export default function DashboardPage(): React.JSX.Element {
           <StatCard title="Empresas" value={stats?.totalEmpresas || 0} icon={<BuildingsIcon fontSize="var(--icon-fontSize-lg)" />} color="#6366f1" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <StatCard title="Conversas" value={stats?.totalConversas || 0} icon={<ChatCircleIcon fontSize="var(--icon-fontSize-lg)" />} color="#f59e0b" />
+          <StatCard title="Conversas WhatsApp" value={stats?.totalConversas || 0} icon={<WhatsappLogoIcon fontSize="var(--icon-fontSize-lg)" />} color="#25D366" />
         </Grid>
       </Grid>
 
@@ -387,134 +346,94 @@ export default function DashboardPage(): React.JSX.Element {
         </Grid>
       </Grid>
 
-      {/* Seção de Conversas Recentes */}
+      {/* Seção de Conversas WhatsApp Recentes */}
       <Card>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2 }}>Conversas Recentes</Typography>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <WhatsappLogoIcon size={24} color="#25D366" />
+              <Typography variant="h6">Conversas WhatsApp Recentes</Typography>
+            </Stack>
+            <Chip 
+              label="Ver todas" 
+              size="small" 
+              color="success" 
+              variant="outlined"
+              onClick={() => router.push(paths.dashboard.chat)}
+              sx={{ cursor: 'pointer' }}
+            />
+          </Stack>
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Session ID</TableCell>
-                <TableCell>Mensagens</TableCell>
+                <TableCell>Contato</TableCell>
                 <TableCell>Última Mensagem</TableCell>
+                <TableCell>Quando</TableCell>
+                <TableCell align="center">Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {recentSessions.length === 0 ? (
-                <TableRow><TableCell colSpan={3} align="center">Nenhuma conversa encontrada</TableCell></TableRow>
+              {recentConversas.length === 0 ? (
+                <TableRow><TableCell colSpan={4} align="center">Nenhuma conversa encontrada</TableCell></TableRow>
               ) : (
-                recentSessions.map((session) => (
-                  <TableRow 
-                    key={session.session_id} 
-                    hover 
-                    sx={{ cursor: 'pointer' }}
-                    onClick={() => handleOpenChat(session.session_id)}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium" color="primary">
-                        {session.session_id.substring(0, 20)}...
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={`${session.total_messages} msgs`} size="small" color="info" />
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {session.preview || '-'}
-                    </TableCell>
-                  </TableRow>
-                ))
+                recentConversas.map((conversa) => {
+                  const telefone = conversa.remoteJid?.replace('@s.whatsapp.net', '') || '';
+                  const timestamp = conversa.lastMessage?.messageTimestamp 
+                    ? dayjs.unix(conversa.lastMessage.messageTimestamp) 
+                    : null;
+
+                  return (
+                    <TableRow 
+                      key={conversa.remoteJid} 
+                      hover 
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => router.push(`${paths.dashboard.chat}?telefone=${telefone}`)}
+                    >
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Avatar sx={{ bgcolor: '#25D366', width: 32, height: 32 }}>
+                            <WhatsappLogoIcon size={18} color="#fff" />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight="medium">
+                              {conversa.pushName || telefone}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {telefone}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {conversa.lastMessage?.fromMe ? 'Você: ' : ''}
+                          {conversa.lastMessage?.text || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="text.secondary">
+                          {timestamp ? timestamp.fromNow() : '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        {conversa.unreadMessages > 0 ? (
+                          <Chip 
+                            label={`${conversa.unreadMessages} nova${conversa.unreadMessages > 1 ? 's' : ''}`} 
+                            size="small" 
+                            color="success" 
+                          />
+                        ) : (
+                          <Chip label="Lida" size="small" variant="outlined" />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-
-      {/* Chat Dialog */}
-      <Dialog 
-        open={chatOpen} 
-        onClose={handleCloseChat} 
-        maxWidth="md" 
-        fullWidth
-        PaperProps={{ sx: { height: '80vh', maxHeight: 700 } }}
-      >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <ChatCircleIcon size={24} />
-            <Typography variant="h6">Conversa</Typography>
-            {selectedSession && (
-              <Typography variant="caption" color="text.secondary">
-                ({selectedSession.substring(0, 15)}...)
-              </Typography>
-            )}
-          </Stack>
-          <IconButton onClick={handleCloseChat} size="small"><XIcon /></IconButton>
-        </DialogTitle>
-        <DialogContent 
-          dividers 
-          sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            p: 2,
-            bgcolor: 'grey.50',
-            overflowY: 'auto'
-          }}
-        >
-          {loadingChat ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-              <LinearProgress sx={{ width: '50%' }} />
-            </Box>
-          ) : chatMessages.length === 0 ? (
-            <Typography align="center" color="text.secondary">Nenhuma mensagem encontrada</Typography>
-          ) : (
-            <Stack spacing={2} sx={{ flex: 1 }}>
-              {chatMessages.map((msg) => {
-                const isUser = msg.message?.role === 'user';
-                const content = msg.message?.content || JSON.stringify(msg.message);
-                
-                return (
-                  <Stack
-                    key={msg.id}
-                    direction="row"
-                    justifyContent={isUser ? 'flex-end' : 'flex-start'}
-                    alignItems="flex-start"
-                    spacing={1}
-                  >
-                    {!isUser && (
-                      <Avatar sx={{ bgcolor: '#635bff', width: 32, height: 32 }}>
-                        <RobotIcon size={18} />
-                      </Avatar>
-                    )}
-                    <Paper
-                      elevation={1}
-                      sx={{
-                        p: 2,
-                        maxWidth: '70%',
-                        bgcolor: isUser ? '#635bff' : 'white',
-                        color: isUser ? 'white' : 'text.primary',
-                        borderRadius: 2,
-                        borderTopRightRadius: isUser ? 0 : 2,
-                        borderTopLeftRadius: isUser ? 2 : 0,
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                        {content}
-                      </Typography>
-                    </Paper>
-                    {isUser && (
-                      <Avatar sx={{ bgcolor: '#0ea5e9', width: 32, height: 32 }}>
-                        <UserIcon size={18} />
-                      </Avatar>
-                    )}
-                  </Stack>
-                );
-              })}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseChat}>Fechar</Button>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 }
