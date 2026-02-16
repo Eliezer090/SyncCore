@@ -167,8 +167,8 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
           novaNotificacao: notificacao.tipo === 'atendimento_humano' ? notificacao : prev.novaNotificacao,
         }));
 
-        // Tocar som para atendimento humano
-        if (notificacao.tipo === 'atendimento_humano') {
+        // Tocar som para atendimento humano e mensagens manuais
+        if (notificacao.tipo === 'atendimento_humano' || notificacao.tipo === 'mensagem_manual') {
           playNotificationSound();
         }
       } catch (error) {

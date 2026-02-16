@@ -16,6 +16,7 @@ import Chip from '@mui/material/Chip';
 import { CheckIcon } from '@phosphor-icons/react/dist/ssr/Check';
 import { XIcon } from '@phosphor-icons/react/dist/ssr/X';
 import { UserCircleIcon } from '@phosphor-icons/react/dist/ssr/UserCircle';
+import { ChatCircleDots as ChatIcon } from '@phosphor-icons/react/dist/ssr/ChatCircleDots';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/pt-br';
@@ -37,7 +38,7 @@ export function NotificationPopover({ anchorEl, open, onClose }: NotificationPop
   const { notificacoes, naoLidas, loading, marcarComoLida, excluirNotificacao } = useNotificacoes();
 
   const handleNotificacaoClick = React.useCallback((notificacao: (typeof notificacoes)[0]) => {
-    if (notificacao.tipo === 'atendimento_humano' && notificacao.cliente_telefone) {
+    if ((notificacao.tipo === 'atendimento_humano' || notificacao.tipo === 'mensagem_manual') && notificacao.cliente_telefone) {
       // Marcar como lida e redirecionar para o chat
       marcarComoLida(notificacao.id);
       onClose();
@@ -84,7 +85,7 @@ export function NotificationPopover({ anchorEl, open, onClose }: NotificationPop
                 sx={{
                   bgcolor: notificacao.lida ? 'transparent' : 'action.hover',
                   '&:hover': { bgcolor: 'action.selected' },
-                  cursor: notificacao.tipo === 'atendimento_humano' ? 'pointer' : 'default',
+                  cursor: (notificacao.tipo === 'atendimento_humano' || notificacao.tipo === 'mensagem_manual') ? 'pointer' : 'default',
                 }}
                 onClick={() => handleNotificacaoClick(notificacao)}
                 secondaryAction={
@@ -117,8 +118,8 @@ export function NotificationPopover({ anchorEl, open, onClose }: NotificationPop
                   </Stack>
                 }
               >
-                <Box sx={{ mr: 1.5, color: notificacao.tipo === 'atendimento_humano' ? 'warning.main' : 'primary.main' }}>
-                  <UserCircleIcon size={32} />
+                <Box sx={{ mr: 1.5, color: notificacao.tipo === 'atendimento_humano' ? 'warning.main' : notificacao.tipo === 'mensagem_manual' ? 'success.main' : 'primary.main' }}>
+                  {notificacao.tipo === 'mensagem_manual' ? <ChatIcon size={32} weight="fill" /> : <UserCircleIcon size={32} />}
                 </Box>
                 <ListItemText
                   primary={
@@ -128,6 +129,9 @@ export function NotificationPopover({ anchorEl, open, onClose }: NotificationPop
                       </Typography>
                       {notificacao.tipo === 'atendimento_humano' && (
                         <Chip label="Atendimento" size="small" color="warning" sx={{ height: 20, fontSize: '0.65rem' }} />
+                      )}
+                      {notificacao.tipo === 'mensagem_manual' && (
+                        <Chip label="Mensagem" size="small" color="success" sx={{ height: 20, fontSize: '0.65rem' }} />
                       )}
                     </Stack>
                   }

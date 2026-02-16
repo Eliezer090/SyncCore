@@ -377,7 +377,7 @@ export interface Notificacao {
   id: string; // UUID
   empresa_id: number;
   cliente_id: number;
-  tipo: 'atendimento_humano' | string;
+  tipo: 'atendimento_humano' | 'mensagem_manual' | string;
   mensagem: string | null;
   lida: boolean;
   criada_em: Date;
