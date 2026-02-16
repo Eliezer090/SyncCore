@@ -11,7 +11,7 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
-import { MessageSquare as RabbitIcon } from '@phosphor-icons/react/dist/ssr/MessageSquare';
+import { GearSix as GearIcon } from '@phosphor-icons/react/dist/ssr/GearSix';
 
 interface RabbitStatus {
   configured: boolean;
@@ -23,7 +23,7 @@ interface TestResult {
   success: boolean;
   message?: string;
   error?: string;
-  data?: unknown;
+  data?: Record<string, unknown>;
 }
 
 export function TestRabbitMQ(): React.JSX.Element {
@@ -79,7 +79,7 @@ export function TestRabbitMQ(): React.JSX.Element {
   return (
     <Card>
       <CardHeader
-        avatar={<RabbitIcon fontSize="var(--icon-fontSize-lg)" />}
+        avatar={<GearIcon fontSize="var(--icon-fontSize-lg)" />}
         subheader="Teste de comunicação com RabbitMQ (remover em produção)"
         title="🐰 Teste RabbitMQ"
       />
@@ -109,11 +109,11 @@ export function TestRabbitMQ(): React.JSX.Element {
               <Typography variant="body2" sx={{ mt: 0.5 }}>
                 {testResult.success ? testResult.message : testResult.error}
               </Typography>
-              {testResult.data && (
+              {testResult.data ? (
                 <Typography variant="caption" component="pre" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
-                  {JSON.stringify(testResult.data, null, 2)}
+                  {String(JSON.stringify(testResult.data, null, 2))}
                 </Typography>
-              )}
+              ) : null}
             </Alert>
           )}
 
