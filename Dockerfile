@@ -99,7 +99,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copiar script de startup
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/startup.sh ./startup.sh
+COPY --chown=nextjs:nodejs scripts/startup.sh ./startup.sh
 RUN chmod +x ./startup.sh
 
 USER nextjs
