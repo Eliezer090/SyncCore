@@ -30,10 +30,15 @@ const config = {
   // Habilitar compressão
   compress: true,
   
-  // Configuração experimental para evitar problemas com páginas de erro
+  // Pacotes Node.js nativos que não devem ser bundlados (necessário para standalone + RabbitMQ)
+  serverExternalPackages: ['amqplib'],
+  
+  // Configuração experimental
   experimental: {
     // Força o uso apenas do App Router
     appDocumentPreloading: false,
+    // Habilitar instrumentation hook (necessário em algumas versões do Next.js 15)
+    instrumentationHook: true,
   },
 };
 
