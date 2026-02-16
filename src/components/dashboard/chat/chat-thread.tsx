@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
@@ -11,6 +12,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { PaperPlaneTilt as SendIcon } from '@phosphor-icons/react/dist/ssr/PaperPlaneTilt';
 import { ArrowLeft as BackIcon } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { Robot as RobotIcon } from '@phosphor-icons/react/dist/ssr/Robot';
+import { UserCircle as UserIcon } from '@phosphor-icons/react/dist/ssr/UserCircle';
 
 interface ChatMessage {
   id: string;
@@ -86,6 +89,90 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
   const [inputText, setInputText] = React.useState('');
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // Estado da IA para este contato
+  const [iaStatus, setIaStatus] = React.useState<{ found: boolean; ia_ativa: boolean; cliente_id: number | null }>({ found: false, ia_ativa: true, cliente_id: null });
+  const [iaLoading, setIaLoading] = React.useState(true);
+  const [iaToggling, setIaToggling] = React.useState(false);
+
+  // Buscar status da IA para este contato
+  const fetchIaStatus = React.useCallback(async () => {
+    try {
+      const token = localStorage.getItem('custom-auth-token');
+      const response = await fetch('/api/chat/ia-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ telefone: remoteJid }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIaStatus({ found: data.found, ia_ativa: data.ia_ativa ?? true, cliente_id: data.cliente_id ?? null });
+      }
+    } catch (err) {
+      console.error('Erro ao buscar status IA:', err);
+    } finally {
+      setIaLoading(false);
+    }
+  }, [remoteJid]);
+
+  React.useEffect(() => {
+    setIaLoading(true);
+    fetchIaStatus();
+  }, [fetchIaStatus]);
+
+  // Transferir atendimento para IA
+  const handleTransferirParaIA = async () => {
+    if (!iaStatus.cliente_id) return;
+    try {
+      setIaToggling(true);
+      const token = localStorage.getItem('custom-auth-token');
+      const response = await fetch(`/api/clientes/${iaStatus.cliente_id}/ia-ativa`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ia_ativa: true }),
+      });
+
+      if (response.ok) {
+        setIaStatus((prev) => ({ ...prev, ia_ativa: true }));
+      }
+    } catch (err) {
+      console.error('Erro ao transferir para IA:', err);
+    } finally {
+      setIaToggling(false);
+    }
+  };
+
+  // Assumir atendimento (desativar IA)
+  const handleAssumirAtendimento = async () => {
+    if (!iaStatus.cliente_id) return;
+    try {
+      setIaToggling(true);
+      const token = localStorage.getItem('custom-auth-token');
+      const response = await fetch(`/api/clientes/${iaStatus.cliente_id}/ia-ativa`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ia_ativa: false }),
+      });
+
+      if (response.ok) {
+        setIaStatus((prev) => ({ ...prev, ia_ativa: false }));
+      }
+    } catch (err) {
+      console.error('Erro ao assumir atendimento:', err);
+    } finally {
+      setIaToggling(false);
+    }
+  };
 
   const fetchMessages = React.useCallback(async () => {
     try {
@@ -225,7 +312,7 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
         <Avatar src={contact.profilePicUrl || undefined} sx={{ width: 40, height: 40 }}>
           {getInitials(contact.pushName)}
         </Avatar>
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography variant="subtitle1" fontWeight="bold">
             {contact.pushName}
           </Typography>
@@ -233,7 +320,77 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
             {formatPhoneNumber(remoteJid)}
           </Typography>
         </Box>
+
+        {/* Botão de toggle IA no header */}
+        {!iaLoading && iaStatus.found && (
+          iaStatus.ia_ativa ? (
+            <Button
+              size="small"
+              variant="outlined"
+              color="warning"
+              startIcon={<UserIcon size={16} />}
+              onClick={handleAssumirAtendimento}
+              disabled={iaToggling}
+              sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+            >
+              {iaToggling ? <CircularProgress size={14} /> : 'Assumir'}
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              startIcon={<RobotIcon size={16} weight="bold" />}
+              onClick={handleTransferirParaIA}
+              disabled={iaToggling}
+              sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+            >
+              {iaToggling ? <CircularProgress size={14} color="inherit" /> : 'Retomar IA'}
+            </Button>
+          )
+        )}
       </Box>
+
+      {/* Banner de status do atendimento */}
+      {!iaLoading && iaStatus.found && !iaStatus.ia_ativa && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            px: 2,
+            py: 1,
+            bgcolor: 'warning.main',
+            color: 'warning.contrastText',
+          }}
+        >
+          <UserIcon size={18} weight="bold" />
+          <Typography variant="body2" fontWeight="bold">
+            Atendimento Humano Ativo — IA desativada para esta conversa
+          </Typography>
+        </Box>
+      )}
+
+      {!iaLoading && iaStatus.found && iaStatus.ia_ativa && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            px: 2,
+            py: 0.5,
+            bgcolor: 'success.light',
+            color: 'success.contrastText',
+          }}
+        >
+          <RobotIcon size={16} weight="bold" />
+          <Typography variant="caption" fontWeight="medium">
+            IA respondendo esta conversa
+          </Typography>
+        </Box>
+      )}
 
       {/* Área de mensagens */}
       <Box

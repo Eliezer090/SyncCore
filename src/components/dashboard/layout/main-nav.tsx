@@ -9,15 +9,18 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import { BellIcon } from '@phosphor-icons/react/dist/ssr/Bell';
 import { ListIcon } from '@phosphor-icons/react/dist/ssr/List';
+import { WhatsappLogo as WhatsappIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
 
 import { usePopover } from '@/hooks/use-popover';
 import { useUser } from '@/hooks/use-user';
 import { useNotificacoes } from '@/hooks/use-notificacoes';
+import { getAuthHeaders } from '@/lib/auth/client';
 
 import { EmpresaSelector } from './empresa-selector';
 import { MobileNav } from './mobile-nav';
 import { UserPopover } from './user-popover';
 import { NotificationPopover } from './notification-popover';
+import { ManualConversasPopover } from './manual-conversas-popover';
 import { AlertaAtendimentoHumano } from './alerta-atendimento';
 
 export function MainNav(): React.JSX.Element {
@@ -27,6 +30,29 @@ export function MainNav(): React.JSX.Element {
 
   const userPopover = usePopover<HTMLDivElement>();
   const notificationPopover = usePopover<HTMLButtonElement>();
+  const manualConversasPopover = usePopover<HTMLButtonElement>();
+  const [manualCount, setManualCount] = React.useState(0);
+
+  // Polling para contar conversas manuais
+  React.useEffect(() => {
+    const fetchManualCount = async () => {
+      try {
+        const response = await fetch('/api/chat/conversas-manuais', {
+          headers: getAuthHeaders(),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setManualCount(data.total || 0);
+        }
+      } catch {
+        // Silenciar erros
+      }
+    };
+
+    fetchManualCount();
+    const interval = setInterval(fetchManualCount, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <React.Fragment>
@@ -58,6 +84,20 @@ export function MainNav(): React.JSX.Element {
             <EmpresaSelector />
           </Stack>
           <Stack sx={{ alignItems: 'center' }} direction="row" spacing={2}>
+            <Tooltip title="Conversas em modo manual">
+              <IconButton
+                ref={manualConversasPopover.anchorRef}
+                onClick={manualConversasPopover.handleOpen}
+              >
+                <Badge
+                  badgeContent={manualCount}
+                  color="error"
+                  max={99}
+                >
+                  <WhatsappIcon weight={manualCount > 0 ? 'fill' : 'regular'} />
+                </Badge>
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Notificações">
               <IconButton
                 ref={notificationPopover.anchorRef}
@@ -90,6 +130,7 @@ export function MainNav(): React.JSX.Element {
       </Box>
       <UserPopover anchorEl={userPopover.anchorRef.current} onClose={userPopover.handleClose} open={userPopover.open} />
       <NotificationPopover anchorEl={notificationPopover.anchorRef.current} onClose={notificationPopover.handleClose} open={notificationPopover.open} />
+      <ManualConversasPopover anchorEl={manualConversasPopover.anchorRef.current} onClose={() => { manualConversasPopover.handleClose(); }} open={manualConversasPopover.open} />
       <AlertaAtendimentoHumano />
       <MobileNav
         onClose={() => {
