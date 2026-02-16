@@ -455,8 +455,20 @@ export default function AgendamentosPage(): React.JSX.Element {
     fetchServicos();
   }, [fetchAgendamentos, fetchEmpresas, fetchProfissionais, fetchServicos]);
 
+  // Formata data para input datetime-local (extrai valores sem conversão de timezone)
   const formatDateForInput = (date: Date | string | undefined) => {
     if (!date) return '';
+    
+    // Se for string ISO do backend (ex: "2026-02-16T14:00:00.000Z"), extrair valores sem conversão
+    if (typeof date === 'string') {
+      const match = date.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (match) {
+        const [, year, month, day, hour, minute] = match;
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+      }
+    }
+    
+    // Se for objeto Date, usar dayjs normalmente
     return dayjs(date).format('YYYY-MM-DDTHH:mm');
   };
 
