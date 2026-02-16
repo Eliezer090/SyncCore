@@ -7,6 +7,7 @@ import { AuthGuard } from '@/components/auth/auth-guard';
 import { MainNav } from '@/components/dashboard/layout/main-nav';
 import { SideNav } from '@/components/dashboard/layout/side-nav';
 import { NotificacoesProvider } from '@/hooks/use-notificacoes';
+import { DashboardContent } from '@/components/dashboard/layout/dashboard-content';
 
 // Força renderização dinâmica para todo o dashboard
 export const dynamic = 'force-dynamic';
@@ -44,9 +45,9 @@ export default function Layout({ children }: LayoutProps): React.JSX.Element {
           <Box sx={{ display: 'flex', flex: '1 1 auto', flexDirection: 'column', pl: { lg: 'var(--SideNav-width)' } }}>
             <MainNav />
             <main>
-              <Container maxWidth="xl" sx={{ py: '64px' }}>
+              <DashboardContent>
                 {children}
-              </Container>
+              </DashboardContent>
             </main>
           </Box>
         </Box>

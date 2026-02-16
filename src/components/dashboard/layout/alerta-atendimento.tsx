@@ -1,6 +1,7 @@
 'use client';
  
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -14,6 +15,7 @@ import { PhoneIcon } from '@phosphor-icons/react/dist/ssr/Phone';
 import { keyframes } from '@mui/material/styles';
 
 import { useNotificacoes } from '@/hooks/use-notificacoes';
+import { paths } from '@/paths';
 
 // Animação de pulso
 const pulse = keyframes`
@@ -29,6 +31,7 @@ const pulse = keyframes`
 `;
 
 export function AlertaAtendimentoHumano(): React.JSX.Element {
+  const router = useRouter();
   const { novaNotificacao, limparNovaNotificacao, marcarComoLida } = useNotificacoes();
 
   const handleClose = () => {
@@ -38,10 +41,15 @@ export function AlertaAtendimentoHumano(): React.JSX.Element {
   const handleAtender = () => {
     if (novaNotificacao) {
       marcarComoLida(novaNotificacao.id);
+      // Redirecionar para o chat do WhatsApp com o telefone do cliente
+      const telefone = novaNotificacao.cliente_telefone;
+      if (telefone) {
+        router.push(`${paths.dashboard.chat}?telefone=${encodeURIComponent(telefone)}`);
+      } else {
+        router.push(paths.dashboard.chat);
+      }
     }
     limparNovaNotificacao();
-    // Aqui você pode redirecionar para a tela de conversa do cliente
-    // window.location.href = `/dashboard/conversas?cliente_id=${novaNotificacao?.cliente_id}`;
   };
 
   return (

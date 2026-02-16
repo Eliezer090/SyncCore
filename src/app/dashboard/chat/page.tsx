@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
@@ -23,12 +24,41 @@ interface ChatContact {
   updatedAt: string | null;
 }
 
+/**
+ * Normaliza um telefone removendo caracteres não numéricos
+ */
+function normalizeTelefone(telefone: string): string {
+  return telefone.replace(/\D/g, '');
+}
+
+/**
+ * Tenta encontrar o remoteJid correspondente a um telefone na lista de contatos
+ */
+function findJidByTelefone(contacts: ChatContact[], telefone: string): string | null {
+  const normalized = normalizeTelefone(telefone);
+  if (!normalized) return null;
+
+  const match = contacts.find((c) => {
+    const jidNumber = c.remoteJid.replace('@s.whatsapp.net', '');
+    // Match exato ou match sem código do país (55)
+    return jidNumber === normalized 
+      || jidNumber === `55${normalized}`
+      || (normalized.startsWith('55') && jidNumber === normalized.substring(2));
+  });
+
+  return match?.remoteJid || null;
+}
+
 export default function ChatPage(): React.JSX.Element {
+  const searchParams = useSearchParams();
+  const telefoneParam = searchParams.get('telefone');
+  
   const [contacts, setContacts] = React.useState<ChatContact[]>([]);
   const [selectedJid, setSelectedJid] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [autoSelected, setAutoSelected] = React.useState(false);
 
   const fetchContacts = React.useCallback(async () => {
     try {
@@ -43,14 +73,24 @@ export default function ChatPage(): React.JSX.Element {
       }
 
       const data = await response.json();
-      setContacts(data.chats || []);
+      const chats = data.chats || [];
+      setContacts(chats);
       setError(null);
+
+      // Auto-selecionar contato pelo telefone da URL (apenas na primeira vez)
+      if (telefoneParam && !autoSelected && chats.length > 0) {
+        const jid = findJidByTelefone(chats, telefoneParam);
+        if (jid) {
+          setSelectedJid(jid);
+          setAutoSelected(true);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao buscar conversas');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [telefoneParam, autoSelected]);
 
   React.useEffect(() => {
     fetchContacts();
@@ -84,7 +124,7 @@ export default function ChatPage(): React.JSX.Element {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 120px)', overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+    <Box sx={{ display: 'flex', height: 'calc(100vh - var(--MainNav-height, 56px))', overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
       {/* Sidebar com lista de conversas */}
       <ChatSidebar
         contacts={filteredContacts}

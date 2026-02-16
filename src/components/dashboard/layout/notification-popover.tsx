@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
@@ -20,6 +21,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/pt-br';
 
 import { useNotificacoes } from '@/hooks/use-notificacoes';
+import { paths } from '@/paths';
 
 dayjs.extend(relativeTime);
 dayjs.locale('pt-br');
@@ -31,7 +33,17 @@ interface NotificationPopoverProps {
 }
 
 export function NotificationPopover({ anchorEl, open, onClose }: NotificationPopoverProps): React.JSX.Element {
+  const router = useRouter();
   const { notificacoes, naoLidas, loading, marcarComoLida, excluirNotificacao } = useNotificacoes();
+
+  const handleNotificacaoClick = React.useCallback((notificacao: (typeof notificacoes)[0]) => {
+    if (notificacao.tipo === 'atendimento_humano' && notificacao.cliente_telefone) {
+      // Marcar como lida e redirecionar para o chat
+      marcarComoLida(notificacao.id);
+      onClose();
+      router.push(`${paths.dashboard.chat}?telefone=${encodeURIComponent(notificacao.cliente_telefone)}`);
+    }
+  }, [marcarComoLida, onClose, router]);
 
   return (
     <Popover
@@ -72,7 +84,9 @@ export function NotificationPopover({ anchorEl, open, onClose }: NotificationPop
                 sx={{
                   bgcolor: notificacao.lida ? 'transparent' : 'action.hover',
                   '&:hover': { bgcolor: 'action.selected' },
+                  cursor: notificacao.tipo === 'atendimento_humano' ? 'pointer' : 'default',
                 }}
+                onClick={() => handleNotificacaoClick(notificacao)}
                 secondaryAction={
                   <Stack direction="row" spacing={0.5}>
                     {!notificacao.lida && (
