@@ -9,13 +9,17 @@ SERVER_PID=$!
 
 echo "⏳ Aguardando servidor iniciar..."
 
+# Detectar a porta (usa PORT do ambiente, fallback para 3000)
+APP_PORT=${PORT:-3000}
+echo "   Porta detectada: $APP_PORT"
+
 # Aguarda o servidor estar pronto (máximo 30 segundos)
 MAX_RETRIES=30
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   # Tenta fazer uma requisição de health check
-  if wget -q --spider http://localhost:3000/api/admin/start-consumer 2>/dev/null; then
+  if wget -q --spider http://localhost:${APP_PORT}/api/admin/start-consumer 2>/dev/null; then
     echo "✅ Servidor pronto!"
     break
   fi
@@ -32,7 +36,7 @@ fi
 # Inicia o consumer RabbitMQ chamando o endpoint
 echo "🐰 Iniciando consumer RabbitMQ..."
 
-CONSUMER_RESPONSE=$(wget -q -O - --post-data="" http://localhost:3000/api/admin/start-consumer 2>/dev/null)
+CONSUMER_RESPONSE=$(wget -q -O - --post-data="" http://localhost:${APP_PORT}/api/admin/start-consumer 2>/dev/null)
 
 if echo "$CONSUMER_RESPONSE" | grep -q '"success":true'; then
   echo "✅ Consumer RabbitMQ iniciado com sucesso!"
