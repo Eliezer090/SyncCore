@@ -54,6 +54,7 @@ const recursoToNavItem: Record<string, {
   
   // Comunicação
   'historico-conversas': { title: 'Histórico Conversas', href: paths.dashboard.historicoConversas, icon: 'chat-circle', grupo: 'Comunicação' },
+  'chat': { title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo', grupo: 'Comunicação' },
   
   // Configurações
   'configuracoes': { title: 'Configurações', href: paths.dashboard.settings, icon: 'gear-six', grupo: 'Configurações' },
@@ -352,6 +353,7 @@ function gerarMenuCompleto(modeloNegocio?: ModeloNegocio): NavGroupConfig[] {
       title: 'Comunicação',
       items: [
         { key: 'historico-conversas', title: 'Histórico Conversas', href: paths.dashboard.historicoConversas, icon: 'chat-circle' },
+        { key: 'chat', title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo' },
       ],
     },
     {

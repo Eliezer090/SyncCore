@@ -22,6 +22,7 @@ import { UserCircleIcon } from '@phosphor-icons/react/dist/ssr/UserCircle';
 import { UsersIcon } from '@phosphor-icons/react/dist/ssr/Users';
 import { UsersFourIcon } from '@phosphor-icons/react/dist/ssr/UsersFour';
 import { WarehouseIcon } from '@phosphor-icons/react/dist/ssr/Warehouse';
+import { WhatsappLogoIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
 import { XSquare } from '@phosphor-icons/react/dist/ssr/XSquare';
 
 export const navIcons = {
@@ -50,4 +51,5 @@ export const navIcons = {
   package: PackageIcon,
   prohibit: ProhibitIcon,
   'shield-check': ShieldCheckIcon,
+  'whatsapp-logo': WhatsappLogoIcon,
 } as Record<string, Icon>;

@@ -34,6 +34,7 @@ export const paths = {
     horariosEmpresa: '/dashboard/horarios-empresa',
     // Comunicação
     historicoConversas: '/dashboard/historico-conversas',
+    chat: '/dashboard/chat',
     // Configurações
     permissoes: '/dashboard/permissoes',
     // Manter compatibilidade
