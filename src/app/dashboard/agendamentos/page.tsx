@@ -61,6 +61,7 @@ const localizer = dateFnsLocalizer({
 });
 
 const statusOptions = [
+  { value: 'agendado', label: 'Agendado', color: '#7b1fa2' },
   { value: 'pendente', label: 'Pendente', color: '#ed6c02' },
   { value: 'confirmado', label: 'Confirmado', color: '#0288d1' },
   { value: 'concluido', label: 'Concluído', color: '#2e7d32' },
