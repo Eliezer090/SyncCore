@@ -1,8 +1,13 @@
 #!/bin/sh
 # Script de inicialização que inicia o servidor e o consumer RabbitMQ
 
-# Capturar sinais antes de tudo
-trap "echo 'Encerrando...'; kill $SERVER_PID 2>/dev/null; exit 0" SIGTERM SIGINT
+# Capturar sinais
+cleanup() {
+  echo "Encerrando..."
+  kill $SERVER_PID 2>/dev/null
+  exit 0
+}
+trap cleanup SIGTERM SIGINT
 
 echo "🚀 Iniciando aplicação SyncCore..."
 
@@ -14,20 +19,24 @@ echo "   Porta: $APP_PORT"
 node server.js &
 SERVER_PID=$!
 
-echo "⏳ Aguardando servidor iniciar (porta $APP_PORT)..."
+echo "⏳ Aguardando servidor iniciar (porta $APP_PORT, PID $SERVER_PID)..."
 
-# Aguarda o servidor estar pronto (máximo 30 segundos)
+# Aguarda o servidor estar pronto usando netcat (mais confiável que wget)
 MAX_RETRIES=30
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-  # Tenta fazer um GET simples (sem --spider, que faz HEAD e pode não funcionar)
-  HTTP_CODE=$(wget -q -O /dev/null -S http://localhost:${APP_PORT}/ 2>&1 | grep "HTTP/" | tail -1 | awk '{print $2}')
-  if [ -n "$HTTP_CODE" ]; then
-    echo "✅ Servidor pronto! (HTTP $HTTP_CODE)"
+  if nc -z 127.0.0.1 $APP_PORT 2>/dev/null; then
+    echo "✅ Servidor pronto na porta $APP_PORT!"
     break
   fi
   
+  # Verificar se o processo ainda está vivo
+  if ! kill -0 $SERVER_PID 2>/dev/null; then
+    echo "❌ Servidor morreu! Verificando logs..."
+    break
+  fi
+
   RETRY_COUNT=$((RETRY_COUNT + 1))
   echo "   Tentativa $RETRY_COUNT/$MAX_RETRIES..."
   sleep 1
@@ -37,10 +46,13 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
   echo "⚠️ Timeout aguardando servidor, continuando mesmo assim..."
 fi
 
+# Pequeno delay para garantir que o servidor está aceitando requests
+sleep 1
+
 # Inicia o consumer RabbitMQ chamando o endpoint
 echo "🐰 Iniciando consumer RabbitMQ..."
 
-CONSUMER_RESPONSE=$(wget -q -O - --post-data="" http://localhost:${APP_PORT}/api/admin/start-consumer 2>&1)
+CONSUMER_RESPONSE=$(wget -q -O - --post-data="" http://127.0.0.1:${APP_PORT}/api/admin/start-consumer 2>&1)
 
 if echo "$CONSUMER_RESPONSE" | grep -q '"success":true'; then
   echo "✅ Consumer RabbitMQ iniciado com sucesso!"
