@@ -476,6 +476,210 @@ export async function logoutInstance(instanceName: string): Promise<EvolutionRes
   }
 }
 
+// ============================
+// CHAT - Funções de Mensagens
+// ============================
+
+export interface ChatContact {
+  id?: string;
+  remoteJid: string;
+  pushName?: string;
+  profilePicUrl?: string;
+  unreadMessages?: number;
+  lastMessage?: {
+    key: Record<string, unknown>;
+    message: Record<string, unknown>;
+    messageType?: string;
+    messageTimestamp?: number;
+    pushName?: string;
+  };
+  updatedAt?: string;
+}
+
+export interface ChatMessage {
+  id?: string;
+  key: {
+    id: string;
+    remoteJid: string;
+    fromMe: boolean;
+    participant?: string;
+  };
+  message: Record<string, unknown>;
+  messageType?: string;
+  messageTimestamp?: number;
+  pushName?: string;
+  source?: string;
+  status?: string;
+  contextInfo?: Record<string, unknown>;
+}
+
+/**
+ * Busca a lista de conversas/chats de uma instância
+ */
+export async function fetchChats(instanceName: string): Promise<EvolutionResponse<ChatContact[]>> {
+  const url = `${EVOLUTION_API_URL}/chat/findChats/${instanceName}`;
+  console.log('[Evolution] fetchChats - URL:', url);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[Evolution] fetchChats - Erro:', error);
+      return { success: false, error: `Erro ao buscar chats: ${response.status}` };
+    }
+
+    const data = await response.json();
+    console.log('[Evolution] fetchChats - Total:', Array.isArray(data) ? data.length : 'N/A');
+    return { success: true, data: Array.isArray(data) ? data : [] };
+  } catch (error) {
+    console.error('[Evolution] fetchChats - Erro catch:', error);
+    return { success: false, error: 'Erro de conexão com Evolution API' };
+  }
+}
+
+/**
+ * Busca mensagens de um chat específico
+ */
+export async function fetchMessages(
+  instanceName: string,
+  remoteJid: string,
+  page: number = 1,
+  offset: number = 50
+): Promise<EvolutionResponse<{ messages: { total: number; records: ChatMessage[] } }>> {
+  const url = `${EVOLUTION_API_URL}/chat/findMessages/${instanceName}`;
+  console.log('[Evolution] fetchMessages - URL:', url, 'JID:', remoteJid);
+
+  try {
+    const body: Record<string, unknown> = {
+      where: {
+        key: {
+          remoteJid: remoteJid,
+        },
+      },
+      page,
+      offset,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[Evolution] fetchMessages - Erro:', error);
+      return { success: false, error: `Erro ao buscar mensagens: ${response.status}` };
+    }
+
+    const data = await response.json();
+    console.log('[Evolution] fetchMessages - Total:', data?.messages?.total || 0);
+    return { success: true, data };
+  } catch (error) {
+    console.error('[Evolution] fetchMessages - Erro catch:', error);
+    return { success: false, error: 'Erro de conexão com Evolution API' };
+  }
+}
+
+/**
+ * Envia uma mensagem de texto
+ */
+export async function sendText(
+  instanceName: string,
+  remoteJid: string,
+  text: string
+): Promise<EvolutionResponse<Record<string, unknown>>> {
+  const url = `${EVOLUTION_API_URL}/message/sendText/${instanceName}`;
+  console.log('[Evolution] sendText - URL:', url, 'JID:', remoteJid);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        number: remoteJid,
+        text,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[Evolution] sendText - Erro:', error);
+      return { success: false, error: `Erro ao enviar mensagem: ${response.status}` };
+    }
+
+    const data = await response.json();
+    console.log('[Evolution] sendText - Sucesso');
+    return { success: true, data };
+  } catch (error) {
+    console.error('[Evolution] sendText - Erro catch:', error);
+    return { success: false, error: 'Erro de conexão com Evolution API' };
+  }
+}
+
+/**
+ * Marca mensagens como lidas
+ */
+export async function markMessageAsRead(
+  instanceName: string,
+  remoteJid: string,
+  messageId: string
+): Promise<EvolutionResponse> {
+  const url = `${EVOLUTION_API_URL}/chat/markMessageAsRead/${instanceName}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        readMessages: [{ id: messageId, fromMe: false, remoteJid }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[Evolution] markAsRead - Erro:', response.status);
+      return { success: false, error: 'Erro ao marcar como lido' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Evolution] markAsRead - Erro:', error);
+    return { success: false, error: 'Erro de conexão' };
+  }
+}
+
+/**
+ * Busca foto de perfil de um contato
+ */
+export async function fetchProfilePicture(
+  instanceName: string,
+  remoteJid: string
+): Promise<EvolutionResponse<{ profilePictureUrl?: string }>> {
+  const url = `${EVOLUTION_API_URL}/chat/fetchProfilePictureUrl/${instanceName}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ number: remoteJid }),
+    });
+
+    if (!response.ok) {
+      return { success: false, error: 'Erro ao buscar foto' };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: 'Erro de conexão' };
+  }
+}
+
 /**
  * Fluxo completo: criar instância (se não existir), configurar webhook e obter QR
  */
