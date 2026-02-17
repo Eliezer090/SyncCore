@@ -78,6 +78,18 @@ export interface HorarioEmpresa {
   fecha: string; // time
 }
 
+export interface FechamentoEmpresa {
+  id: number;
+  empresa_id: number;
+  data_inicio: string; // date
+  data_fim: string; // date
+  tipo: 'fechado' | 'horario_especial';
+  abre: string | null; // time - usado quando tipo = 'horario_especial'
+  fecha: string | null; // time - usado quando tipo = 'horario_especial'
+  motivo: string | null;
+  criado_em: Date;
+}
+
 export interface Servico {
   id: number;
   empresa_id: number;
@@ -350,6 +362,7 @@ export type EmpresaInput = Omit<Empresa, 'id' | 'criado_em'>;
 export type CategoriaProdutoInput = Omit<CategoriaProduto, 'id'>;
 export type EnderecoInput = Omit<Endereco, 'id' | 'criado_em'>;
 export type HorarioEmpresaInput = Omit<HorarioEmpresa, 'id'>;
+export type FechamentoEmpresaInput = Omit<FechamentoEmpresa, 'id' | 'criado_em'>;
 export type ServicoInput = Omit<Servico, 'id'>;
 export type UsuarioInput = Omit<Usuario, 'id' | 'criado_em'>;
 export type ProdutoInput = Omit<Produto, 'id' | 'criado_em'>;

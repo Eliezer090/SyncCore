@@ -29,6 +29,7 @@ const recursoToNavItem: Record<string, {
   'usuarios': { title: 'Usuários', href: paths.dashboard.usuarios, icon: 'user-circle', grupo: 'Geral' },
   'enderecos': { title: 'Endereços', href: paths.dashboard.enderecos, icon: 'map-pin', grupo: 'Geral' },
   'horarios-empresa': { title: 'Horários Empresa', href: paths.dashboard.horariosEmpresa, icon: 'clock', grupo: 'Geral' },
+  'fechamentos-empresa': { title: 'Fechamentos/Feriados', href: paths.dashboard.fechamentosEmpresa, icon: 'calendar-x', grupo: 'Geral' },
   
   // Produtos & Pedidos - Catálogo (só para modelo 'produto' ou 'ambos')
   'categorias-produto': { title: 'Categorias', href: paths.dashboard.categoriasProduto, icon: 'list-bullets', grupo: 'Produtos & Pedidos', subGrupo: 'Catálogo', modeloNegocio: 'produto' },
@@ -54,6 +55,9 @@ const recursoToNavItem: Record<string, {
   
   // Comunicação
   'chat': { title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo', grupo: 'Comunicação' },
+  
+  // Relatórios
+  'relatorios': { title: 'Relatórios', href: paths.dashboard.relatorios, icon: 'chart-bar', grupo: 'Relatórios' },
   
   // Configurações
   'configuracoes': { title: 'Configurações', href: paths.dashboard.settings, icon: 'gear-six', grupo: 'Configurações' },
@@ -278,6 +282,7 @@ function gerarMenuCompleto(modeloNegocio?: ModeloNegocio): NavGroupConfig[] {
         { key: 'usuarios', title: 'Usuários', href: paths.dashboard.usuarios, icon: 'user-circle' },
         { key: 'enderecos', title: 'Endereços', href: paths.dashboard.enderecos, icon: 'map-pin' },
         { key: 'horarios-empresa', title: 'Horários Empresa', href: paths.dashboard.horariosEmpresa, icon: 'clock' },
+        { key: 'fechamentos-empresa', title: 'Fechamentos/Feriados', href: paths.dashboard.fechamentosEmpresa, icon: 'calendar-x' },
       ],
     },
   ];
@@ -352,6 +357,13 @@ function gerarMenuCompleto(modeloNegocio?: ModeloNegocio): NavGroupConfig[] {
       title: 'Comunicação',
       items: [
         { key: 'chat', title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo' },
+      ],
+    },
+    {
+      key: 'relatorios',
+      title: 'Relatórios',
+      items: [
+        { key: 'relatorios', title: 'Relatórios', href: paths.dashboard.relatorios, icon: 'chart-bar' },
       ],
     },
     {

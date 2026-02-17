@@ -32,9 +32,12 @@ export const paths = {
     // Endereços e Horários
     enderecos: '/dashboard/enderecos',
     horariosEmpresa: '/dashboard/horarios-empresa',
+    fechamentosEmpresa: '/dashboard/fechamentos-empresa',
     // Comunicação
     historicoConversas: '/dashboard/historico-conversas',
     chat: '/dashboard/chat',
+    // Relatórios
+    relatorios: '/dashboard/relatorios',
     // Configurações
     permissoes: '/dashboard/permissoes',
     // Manter compatibilidade

@@ -1,6 +1,8 @@
 import type { Icon } from '@phosphor-icons/react/dist/lib/types';
 import { BuildingsIcon } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { CalendarIcon } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { CalendarXIcon } from '@phosphor-icons/react/dist/ssr/CalendarX';
+import { ChartBarIcon } from '@phosphor-icons/react/dist/ssr/ChartBar';
 import { ChartPieIcon } from '@phosphor-icons/react/dist/ssr/ChartPie';
 import { ChatCircleIcon } from '@phosphor-icons/react/dist/ssr/ChatCircle';
 import { ClockIcon } from '@phosphor-icons/react/dist/ssr/Clock';
@@ -26,6 +28,7 @@ import { WhatsappLogoIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
 import { XSquare } from '@phosphor-icons/react/dist/ssr/XSquare';
 
 export const navIcons = {
+  'chart-bar': ChartBarIcon,
   'chart-pie': ChartPieIcon,
   'gear-six': GearSixIcon,
   'plugs-connected': PlugsConnectedIcon,
@@ -44,6 +47,7 @@ export const navIcons = {
   'shopping-cart': ShoppingCartIcon,
   'credit-card': CreditCardIcon,
   calendar: CalendarIcon,
+  'calendar-x': CalendarXIcon,
   'map-pin': MapPinIcon,
   clock: ClockIcon,
   'chat-circle': ChatCircleIcon,

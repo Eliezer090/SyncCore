@@ -24,6 +24,7 @@ const navGroupsBase: NavGroupConfig[] = [
       { key: 'usuarios', title: 'Usuários', href: paths.dashboard.usuarios, icon: 'user-circle' },
       { key: 'enderecos', title: 'Endereços', href: paths.dashboard.enderecos, icon: 'map-pin' },
       { key: 'horarios-empresa', title: 'Horários Empresa', href: paths.dashboard.horariosEmpresa, icon: 'clock' },
+      { key: 'fechamentos-empresa', title: 'Fechamentos/Feriados', href: paths.dashboard.fechamentosEmpresa, icon: 'calendar-x' },
     ],
   },
 
@@ -97,6 +98,15 @@ const navGroupsBase: NavGroupConfig[] = [
     title: 'Comunicação',
     items: [
       { key: 'chat', title: 'Chat WhatsApp', href: paths.dashboard.chat, icon: 'whatsapp-logo' },
+    ],
+  },
+
+  // ================ RELATÓRIOS ================
+  {
+    key: 'relatorios',
+    title: 'Relatórios',
+    items: [
+      { key: 'relatorios', title: 'Relatórios', href: paths.dashboard.relatorios, icon: 'chart-bar' },
     ],
   },
 
