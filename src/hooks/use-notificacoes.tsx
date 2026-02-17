@@ -138,62 +138,80 @@ export function NotificacoesProvider({ children }: { children: React.ReactNode }
 
   // Conectar ao SSE para receber notificações em tempo real
   React.useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    // Fechar conexão anterior se existir
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+    const token = localStorage.getItem('custom-auth-token');
+    if (!token) {
+      console.warn('⚠️ Token não encontrado no localStorage - SSE não será conectado');
+      return;
     }
 
-    // Criar nova conexão SSE
-    const eventSource = new EventSource(`/api/notificacoes/stream?token=${token}`);
-    eventSourceRef.current = eventSource;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isCleanedUp = false;
 
-    eventSource.addEventListener('connected', () => {
-      console.log('🔗 Conectado ao stream de notificações');
-    });
+    const connect = () => {
+      if (isCleanedUp) return;
 
-    eventSource.addEventListener('notificacao', (event) => {
-      try {
-        const notificacao: Notificacao = JSON.parse(event.data);
-        console.log('🔔 Nova notificação recebida:', notificacao);
-
-        // Adicionar à lista e mostrar popup
-        setState(prev => ({
-          ...prev,
-          notificacoes: [notificacao, ...prev.notificacoes],
-          naoLidas: prev.naoLidas + 1,
-          novaNotificacao: notificacao.tipo === 'atendimento_humano' ? notificacao : prev.novaNotificacao,
-        }));
-
-        // Tocar som para atendimento humano e mensagens manuais
-        if (notificacao.tipo === 'atendimento_humano' || notificacao.tipo === 'mensagem_manual') {
-          playNotificationSound();
-        }
-      } catch (error) {
-        console.error('Erro ao processar notificação:', error);
+      // Fechar conexão anterior se existir
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
       }
-    });
 
-    eventSource.addEventListener('heartbeat', () => {
-      // Heartbeat recebido - conexão ativa
-    });
+      console.log('🔌 Conectando ao stream de notificações...');
+      const eventSource = new EventSource(`/api/notificacoes/stream?token=${token}`);
+      eventSourceRef.current = eventSource;
 
-    eventSource.onerror = () => {
-      console.error('❌ Erro na conexão SSE');
-      // Tentar reconectar após 5 segundos
-      setTimeout(() => {
-        if (eventSourceRef.current === eventSource) {
-          eventSourceRef.current = null;
+      eventSource.addEventListener('connected', () => {
+        console.log('🔗 Conectado ao stream de notificações');
+      });
+
+      eventSource.addEventListener('notificacao', (event) => {
+        try {
+          const notificacao: Notificacao = JSON.parse(event.data);
+          console.log('🔔 Nova notificação recebida:', notificacao);
+
+          // Adicionar à lista e mostrar popup
+          setState(prev => ({
+            ...prev,
+            notificacoes: [notificacao, ...prev.notificacoes],
+            naoLidas: prev.naoLidas + 1,
+            novaNotificacao: (notificacao.tipo === 'atendimento_humano' || notificacao.tipo === 'mensagem_manual') 
+              ? notificacao 
+              : prev.novaNotificacao,
+          }));
+
+          // Tocar som para atendimento humano e mensagens manuais
+          if (notificacao.tipo === 'atendimento_humano' || notificacao.tipo === 'mensagem_manual') {
+            playNotificationSound();
+          }
+        } catch (error) {
+          console.error('Erro ao processar notificação:', error);
         }
-      }, 5000);
+      });
+
+      eventSource.addEventListener('heartbeat', () => {
+        // Heartbeat recebido - conexão ativa
+      });
+
+      eventSource.onerror = () => {
+        console.error('❌ Erro na conexão SSE - reconectando em 5s...');
+        eventSource.close();
+        eventSourceRef.current = null;
+        // Reconectar após 5 segundos
+        if (!isCleanedUp) {
+          reconnectTimeout = setTimeout(connect, 5000);
+        }
+      };
     };
+
+    connect();
 
     // Cleanup
     return () => {
-      eventSource.close();
-      eventSourceRef.current = null;
+      isCleanedUp = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
     };
   }, [playNotificationSound]);
 

@@ -2,16 +2,17 @@
  
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
+import Snackbar from '@mui/material/Snackbar';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
+import Paper from '@mui/material/Paper';
+import IconButton from '@mui/material/IconButton';
 import { UserCircleIcon } from '@phosphor-icons/react/dist/ssr/UserCircle';
 import { PhoneIcon } from '@phosphor-icons/react/dist/ssr/Phone';
+import { XIcon } from '@phosphor-icons/react/dist/ssr/X';
 import { keyframes } from '@mui/material/styles';
 
 import { useNotificacoes } from '@/hooks/use-notificacoes';
@@ -23,10 +24,22 @@ const pulse = keyframes`
     box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7);
   }
   70% {
-    box-shadow: 0 0 0 20px rgba(255, 152, 0, 0);
+    box-shadow: 0 0 0 12px rgba(255, 152, 0, 0);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 152, 0, 0);
+  }
+`;
+
+// Animação de entrada deslizando da direita
+const slideIn = keyframes`
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
   }
 `;
 
@@ -41,7 +54,6 @@ export function AlertaAtendimentoHumano(): React.JSX.Element {
   const handleAtender = () => {
     if (novaNotificacao) {
       marcarComoLida(novaNotificacao.id);
-      // Redirecionar para o chat do WhatsApp com o telefone do cliente
       const telefone = novaNotificacao.cliente_telefone;
       if (telefone) {
         router.push(`${paths.dashboard.chat}?telefone=${encodeURIComponent(telefone)}`);
@@ -53,114 +65,108 @@ export function AlertaAtendimentoHumano(): React.JSX.Element {
   };
 
   return (
-    <Dialog
+    <Snackbar
       open={Boolean(novaNotificacao)}
+      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       onClose={handleClose}
-      maxWidth="sm"
-      fullWidth
-      slotProps={{
-        paper: {
-          sx: {
-            borderRadius: 3,
-            overflow: 'visible',
-          },
-        },
-        backdrop: {
-          sx: {
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          },
-        },
+      sx={{ 
+        top: { xs: '16px', sm: '24px' },
+        right: { xs: '16px', sm: '24px' },
+        maxWidth: 400,
       }}
     >
-      <DialogContent sx={{ pt: 4, pb: 3, px: 4 }}>
-        <Stack spacing={3} alignItems="center">
-          {/* Ícone com animação */}
+      <Paper
+        elevation={8}
+        sx={{
+          p: 2.5,
+          borderRadius: 2,
+          borderLeft: '4px solid',
+          borderLeftColor: 'warning.main',
+          animation: `${slideIn} 0.4s ease-out`,
+          minWidth: 320,
+          maxWidth: 400,
+        }}
+      >
+        <Stack spacing={2}>
+          {/* Header com ícone e botão fechar */}
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box
+                sx={{
+                  animation: `${pulse} 2s infinite`,
+                  borderRadius: '50%',
+                  display: 'flex',
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    bgcolor: 'warning.main',
+                    color: 'warning.contrastText',
+                  }}
+                >
+                  <UserCircleIcon size={24} />
+                </Avatar>
+              </Box>
+              <Typography variant="subtitle1" fontWeight="bold">
+                🔔 Novo Atendimento Requerido
+              </Typography>
+            </Stack>
+            <IconButton size="small" onClick={handleClose} sx={{ ml: 1 }}>
+              <XIcon size={18} />
+            </IconButton>
+          </Stack>
+
+          {/* Info do cliente */}
           <Box
             sx={{
-              position: 'relative',
-              animation: `${pulse} 2s infinite`,
-              borderRadius: '50%',
+              bgcolor: 'grey.50',
+              borderRadius: 1.5,
+              p: 1.5,
             }}
           >
-            <Avatar
-              sx={{
-                width: 100,
-                height: 100,
-                bgcolor: 'warning.main',
-                color: 'warning.contrastText',
-              }}
-            >
-              <UserCircleIcon size={60} />
-            </Avatar>
-          </Box>
-
-          {/* Título */}
-          <Typography variant="h4" textAlign="center" fontWeight="bold">
-            🔔 Atendimento Humano Solicitado!
-          </Typography>
-
-          {/* Informações do cliente */}
-          <Box
-            sx={{
-              bgcolor: 'grey.100',
-              borderRadius: 2,
-              p: 3,
-              width: '100%',
-            }}
-          >
-            <Stack spacing={2}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <UserCircleIcon size={24} />
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Cliente
-                  </Typography>
-                  <Typography variant="h6">
-                    {novaNotificacao?.cliente_nome || 'Nome não disponível'}
-                  </Typography>
-                </Box>
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <UserCircleIcon size={18} />
+                <Typography variant="body2" fontWeight={500}>
+                  {novaNotificacao?.cliente_nome || 'Nome não disponível'}
+                </Typography>
               </Stack>
-
-              <Stack direction="row" spacing={2} alignItems="center">
-                <PhoneIcon size={24} />
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Telefone
-                  </Typography>
-                  <Typography variant="body1">
-                    {novaNotificacao?.cliente_telefone || 'Telefone não disponível'}
-                  </Typography>
-                </Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <PhoneIcon size={18} />
+                <Typography variant="body2" color="text.secondary">
+                  {novaNotificacao?.cliente_telefone || 'Telefone não disponível'}
+                </Typography>
               </Stack>
             </Stack>
           </Box>
 
           {/* Mensagem */}
-          <Typography variant="body1" color="text.secondary" textAlign="center">
+          <Typography variant="body2" color="text.secondary">
             Este cliente deseja falar com um atendente humano.
           </Typography>
-        </Stack>
-      </DialogContent>
 
-      <DialogActions sx={{ px: 4, pb: 4, justifyContent: 'center' }}>
-        <Button
-          variant="outlined"
-          onClick={handleClose}
-          size="large"
-          sx={{ minWidth: 120 }}
-        >
-          Fechar
-        </Button>
-        <Button
-          variant="contained"
-          color="warning"
-          onClick={handleAtender}
-          size="large"
-          sx={{ minWidth: 160 }}
-        >
-          Atender Cliente
-        </Button>
-      </DialogActions>
-    </Dialog>
+          {/* Ações */}
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleClose}
+            >
+              Dispensar
+            </Button>
+            <Button
+              variant="contained"
+              color="warning"
+              size="small"
+              onClick={handleAtender}
+            >
+              Atender
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+    </Snackbar>
   );
 }
