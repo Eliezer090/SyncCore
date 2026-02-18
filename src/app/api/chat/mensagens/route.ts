@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, getEmpresaIdParaQuery } from '@/lib/auth/middleware';
 import { query } from '@/lib/db';
-import { fetchMessages, sanitizeInstanceName } from '@/lib/evolution-api';
+import type { MensagemChat } from '@/types/database';
 
-// POST /api/chat/mensagens - Busca mensagens de um chat específico
+// POST /api/chat/mensagens - Busca mensagens de um chat do banco local
 export async function POST(request: NextRequest) {
   try {
     const { user, error } = getAuthUser(request);
@@ -17,108 +17,61 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { remoteJid, page = 1, offset = 50 } = body;
+    const { remoteJid, limit = 100, before } = body;
 
     if (!remoteJid) {
       return NextResponse.json({ error: 'remoteJid é obrigatório' }, { status: 400 });
     }
 
-    // Buscar instância da empresa
-    const empresas = await query<{ id: number; nome: string; whatsapp_vinculado: string | null }>(
-      'SELECT id, nome, whatsapp_vinculado FROM empresas WHERE id = $1',
-      [empresaId]
-    );
+    // Buscar mensagens do banco local — ordem cronológica (mais antigo primeiro)
+    let sql: string;
+    let params: unknown[];
 
-    if (!empresas.length || !empresas[0].whatsapp_vinculado) {
-      return NextResponse.json({ error: 'WhatsApp não vinculado' }, { status: 400 });
+    if (before) {
+      // Paginação: mensagens antes de um timestamp
+      sql = `SELECT * FROM mensagens_chat 
+             WHERE empresa_id = $1 AND remote_jid = $2 AND timestamp < $3
+             ORDER BY timestamp DESC 
+             LIMIT $4`;
+      params = [empresaId, remoteJid, before, limit];
+    } else {
+      // Últimas N mensagens
+      sql = `SELECT * FROM mensagens_chat 
+             WHERE empresa_id = $1 AND remote_jid = $2
+             ORDER BY timestamp DESC 
+             LIMIT $3`;
+      params = [empresaId, remoteJid, limit];
     }
 
-    const instanceName = `empresa_${empresas[0].id}_${sanitizeInstanceName(empresas[0].nome)}`;
-
-    // Buscar mensagens via Evolution API
-    const result = await fetchMessages(instanceName, remoteJid, page, offset);
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
-    }
-
-    const messages = result.data?.messages?.records || [];
-
-    // Transformar mensagens para formato mais simples
-    const formattedMessages = messages.map((msg) => ({
-      id: msg.key?.id || msg.id,
-      fromMe: msg.key?.fromMe || false,
-      remoteJid: msg.key?.remoteJid || remoteJid,
-      participant: msg.key?.participant,
-      messageType: msg.messageType || 'unknown',
-      text: extractMessageText(msg.message),
-      timestamp: msg.messageTimestamp,
-      pushName: msg.pushName,
-      status: msg.status,
-      hasMedia: hasMedia(msg.message),
-      mediaType: getMediaType(msg.message),
-    }));
+    const rows = await query<MensagemChat>(sql, params);
 
     // Reverter para ordem cronológica (mais antigo primeiro)
-    formattedMessages.reverse();
+    rows.reverse();
 
-    return NextResponse.json({
-      messages: formattedMessages,
-      total: result.data?.messages?.total || 0,
-      page,
-    });
+    // Formatar para o frontend
+    const messages = rows.map((msg) => ({
+      id: msg.message_id,
+      fromMe: msg.from_me,
+      remoteJid: msg.remote_jid,
+      messageType: msg.message_type,
+      text: msg.text || '',
+      timestamp: msg.timestamp,
+      pushName: msg.push_name,
+      status: msg.status,
+      hasMedia: msg.has_media,
+      mediaType: msg.media_type,
+    }));
+
+    // Contar total
+    const countResult = await query<{ total: string }>(
+      'SELECT COUNT(*) as total FROM mensagens_chat WHERE empresa_id = $1 AND remote_jid = $2',
+      [empresaId, remoteJid]
+    );
+    const total = parseInt(countResult[0]?.total || '0', 10);
+
+    return NextResponse.json({ messages, total });
   } catch (err) {
     console.error('[Chat API] Erro ao buscar mensagens:', err);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
-}
-
-function extractMessageText(message: Record<string, unknown> | undefined): string {
-  if (!message) return '';
-
-  if (message.conversation) return message.conversation as string;
-  if (message.extendedTextMessage) {
-    const ext = message.extendedTextMessage as Record<string, unknown>;
-    return (ext.text || '') as string;
-  }
-  if (message.imageMessage) {
-    const img = message.imageMessage as Record<string, unknown>;
-    return (img.caption || '📷 Imagem') as string;
-  }
-  if (message.videoMessage) {
-    const vid = message.videoMessage as Record<string, unknown>;
-    return (vid.caption || '🎥 Vídeo') as string;
-  }
-  if (message.audioMessage) return '🎵 Áudio';
-  if (message.documentMessage) {
-    const doc = message.documentMessage as Record<string, unknown>;
-    return `📄 ${doc.fileName || 'Documento'}`;
-  }
-  if (message.stickerMessage) return '🏷️ Sticker';
-  if (message.locationMessage) return '📍 Localização';
-  if (message.contactMessage) {
-    const contact = message.contactMessage as Record<string, unknown>;
-    return `👤 ${contact.displayName || 'Contato'}`;
-  }
-  if (message.reactionMessage) {
-    const reaction = message.reactionMessage as Record<string, unknown>;
-    return (reaction.text || '😀') as string;
-  }
-
-  return '';
-}
-
-function hasMedia(message: Record<string, unknown> | undefined): boolean {
-  if (!message) return false;
-  return !!(message.imageMessage || message.videoMessage || message.audioMessage || message.documentMessage || message.stickerMessage);
-}
-
-function getMediaType(message: Record<string, unknown> | undefined): string | null {
-  if (!message) return null;
-  if (message.imageMessage) return 'image';
-  if (message.videoMessage) return 'video';
-  if (message.audioMessage) return 'audio';
-  if (message.documentMessage) return 'document';
-  if (message.stickerMessage) return 'sticker';
-  return null;
 }

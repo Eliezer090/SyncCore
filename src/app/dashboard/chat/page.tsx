@@ -15,32 +15,51 @@ interface ChatContact {
   profilePicUrl: string | null;
   unreadMessages: number;
   lastMessage: {
-    messageType: string;
     messageTimestamp: number;
-    pushName: string;
     fromMe: boolean;
     text: string;
   } | null;
   updatedAt: string | null;
 }
 
-/**
- * Normaliza um telefone removendo caracteres não numéricos
- */
+interface ChatEvent {
+  type: 'nova_mensagem' | 'contato_atualizado';
+  mensagem?: {
+    id: number;
+    empresa_id: number;
+    remote_jid: string;
+    message_id: string;
+    from_me: boolean;
+    push_name: string | null;
+    message_type: string;
+    text: string | null;
+    timestamp: number;
+    status: string | null;
+    has_media: boolean;
+    media_type: string | null;
+  };
+  contato?: {
+    empresa_id: number;
+    remote_jid: string;
+    push_name: string | null;
+    profile_pic_url: string | null;
+    last_message_text: string | null;
+    last_message_timestamp: number | null;
+    last_message_from_me: boolean | null;
+    unread_count: number;
+  };
+}
+
 function normalizeTelefone(telefone: string): string {
   return telefone.replace(/\D/g, '');
 }
 
-/**
- * Tenta encontrar o remoteJid correspondente a um telefone na lista de contatos
- */
 function findJidByTelefone(contacts: ChatContact[], telefone: string): string | null {
   const normalized = normalizeTelefone(telefone);
   if (!normalized) return null;
 
   const match = contacts.find((c) => {
     const jidNumber = c.remoteJid.replace('@s.whatsapp.net', '');
-    // Match exato ou match sem código do país (55)
     return jidNumber === normalized 
       || jidNumber === `55${normalized}`
       || (normalized.startsWith('55') && jidNumber === normalized.substring(2));
@@ -59,6 +78,11 @@ export default function ChatPage(): React.JSX.Element {
   const [error, setError] = React.useState<string | null>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [autoSelected, setAutoSelected] = React.useState(false);
+
+  // Ref para evitar duplicatas no SSE
+  const eventSourceRef = React.useRef<EventSource | null>(null);
+  // Ref para novo evento de mensagem — passado ao ChatThread
+  const [lastChatEvent, setLastChatEvent] = React.useState<ChatEvent | null>(null);
 
   const fetchContacts = React.useCallback(async () => {
     try {
@@ -92,12 +116,106 @@ export default function ChatPage(): React.JSX.Element {
     }
   }, [telefoneParam, autoSelected]);
 
+  // Fetch inicial + SSE para atualizações em tempo real
   React.useEffect(() => {
     fetchContacts();
-    // Atualizar a cada 15 segundos
-    const interval = setInterval(fetchContacts, 15000);
-    return () => clearInterval(interval);
   }, [fetchContacts]);
+
+  // Conectar ao SSE para receber eventos de chat em tempo real
+  React.useEffect(() => {
+    const token = localStorage.getItem('custom-auth-token');
+    if (!token) return;
+
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isCleanedUp = false;
+
+    const connect = () => {
+      if (isCleanedUp) return;
+
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      const eventSource = new EventSource(`/api/chat/stream?token=${token}`);
+      eventSourceRef.current = eventSource;
+
+      eventSource.addEventListener('chat', (event) => {
+        try {
+          const chatEvent: ChatEvent = JSON.parse(event.data);
+
+          if (chatEvent.type === 'contato_atualizado' && chatEvent.contato) {
+            const c = chatEvent.contato;
+            setContacts((prev) => {
+              const existing = prev.find((x) => x.remoteJid === c.remote_jid);
+              const updated: ChatContact = {
+                remoteJid: c.remote_jid,
+                pushName: c.push_name || existing?.pushName || c.remote_jid.split('@')[0] || 'Desconhecido',
+                profilePicUrl: c.profile_pic_url || existing?.profilePicUrl || null,
+                unreadMessages: c.unread_count,
+                lastMessage: c.last_message_timestamp ? {
+                  messageTimestamp: c.last_message_timestamp,
+                  fromMe: c.last_message_from_me || false,
+                  text: c.last_message_text || '',
+                } : existing?.lastMessage || null,
+                updatedAt: new Date().toISOString(),
+              };
+
+              const newList = prev.filter((x) => x.remoteJid !== c.remote_jid);
+              newList.unshift(updated);
+              return newList;
+            });
+          }
+
+          // Repassar evento para o ChatThread
+          if (chatEvent.type === 'nova_mensagem') {
+            setLastChatEvent(chatEvent);
+          }
+        } catch (err) {
+          console.error('[Chat SSE] Erro ao parsear evento:', err);
+        }
+      });
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+        if (!isCleanedUp) {
+          reconnectTimeout = setTimeout(connect, 5000);
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      isCleanedUp = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Marcar como lido ao selecionar contato
+  const handleSelectContact = React.useCallback((jid: string) => {
+    setSelectedJid(jid);
+
+    // Zerar unread no frontend
+    setContacts((prev) =>
+      prev.map((c) => c.remoteJid === jid ? { ...c, unreadMessages: 0 } : c)
+    );
+
+    // Zerar unread no backend
+    const token = localStorage.getItem('custom-auth-token');
+    fetch('/api/chat/conversas', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ remoteJid: jid }),
+    }).catch(() => {});
+  }, []);
 
   const selectedContact = contacts.find((c) => c.remoteJid === selectedJid) || null;
 
@@ -125,20 +243,19 @@ export default function ChatPage(): React.JSX.Element {
 
   return (
     <Box sx={{ display: 'flex', height: 'calc(100vh - var(--MainNav-height, 56px))', overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-      {/* Sidebar com lista de conversas */}
       <ChatSidebar
         contacts={filteredContacts}
         selectedJid={selectedJid}
-        onSelectContact={(jid) => setSelectedJid(jid)}
+        onSelectContact={handleSelectContact}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
       />
 
-      {/* Thread de mensagens */}
       {selectedJid && selectedContact ? (
         <ChatThread
           remoteJid={selectedJid}
           contact={selectedContact}
+          lastChatEvent={lastChatEvent}
           onMessageSent={() => fetchContacts()}
         />
       ) : (

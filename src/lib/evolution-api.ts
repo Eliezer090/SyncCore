@@ -201,7 +201,9 @@ export async function createInstance(instanceName: string): Promise<EvolutionRes
 }
 
 /**
- * Configura o webhook da instância para o N8N
+ * Configura o webhook da instância para o N8N.
+ * O N8N processa a mensagem (IA responde o cliente) e depois
+ * repassa para o SyncCore via POST /api/chat/webhook.
  */
 export async function configureWebhook(instanceName: string, webhookUrl?: string): Promise<EvolutionResponse> {
   try {
@@ -219,12 +221,7 @@ export async function configureWebhook(instanceName: string, webhookUrl?: string
         webhookBase64: false,
         events: [
           'MESSAGES_UPSERT',
-          // Eventos adicionais que podem ser úteis:
-          // 'MESSAGES_UPDATE',
-          // 'MESSAGES_DELETE',
-          // 'SEND_MESSAGE',
-          // 'CONNECTION_UPDATE',
-          // 'QRCODE_UPDATED',
+          'SEND_MESSAGE',
         ],
       },
     };
@@ -241,7 +238,7 @@ export async function configureWebhook(instanceName: string, webhookUrl?: string
       return { success: false, error: 'Erro ao configurar webhook' };
     }
 
-    console.log('[Evolution] Webhook configurado para:', instanceName);
+    console.log('[Evolution] Webhook configurado para:', instanceName, '→', url);
     return { success: true };
   } catch (error) {
     console.error('[Evolution] Erro ao configurar webhook:', error);

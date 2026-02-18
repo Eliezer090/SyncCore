@@ -38,9 +38,28 @@ interface ChatContact {
   updatedAt: string | null;
 }
 
+interface ChatEvent {
+  type: 'nova_mensagem' | 'contato_atualizado';
+  mensagem?: {
+    id: number;
+    empresa_id: number;
+    remote_jid: string;
+    message_id: string;
+    from_me: boolean;
+    push_name: string | null;
+    message_type: string;
+    text: string | null;
+    timestamp: number;
+    status: string | null;
+    has_media: boolean;
+    media_type: string | null;
+  };
+}
+
 interface ChatThreadProps {
   remoteJid: string;
   contact: ChatContact;
+  lastChatEvent?: ChatEvent | null;
   onMessageSent?: () => void;
 }
 
@@ -82,7 +101,7 @@ function formatPhoneNumber(jid: string): string {
   return number;
 }
 
-export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProps): React.JSX.Element {
+export function ChatThread({ remoteJid, contact, lastChatEvent, onMessageSent }: ChatThreadProps): React.JSX.Element {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [sending, setSending] = React.useState(false);
@@ -174,6 +193,7 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
     }
   };
 
+  // Buscar mensagens do banco local
   const fetchMessages = React.useCallback(async () => {
     try {
       const token = localStorage.getItem('custom-auth-token');
@@ -183,7 +203,7 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ remoteJid, page: 1, offset: 100 }),
+        body: JSON.stringify({ remoteJid, limit: 100 }),
       });
 
       if (!response.ok) {
@@ -204,11 +224,40 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
     setLoading(true);
     setMessages([]);
     fetchMessages();
-
-    // Poll a cada 5 segundos para novas mensagens
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
   }, [fetchMessages]);
+
+  // Receber mensagens via SSE (repassadas pelo ChatPage)
+  React.useEffect(() => {
+    if (!lastChatEvent || lastChatEvent.type !== 'nova_mensagem' || !lastChatEvent.mensagem) return;
+
+    const msg = lastChatEvent.mensagem;
+    // Apenas mensagens desta conversa
+    if (msg.remote_jid !== remoteJid) return;
+
+    const newMessage: ChatMessage = {
+      id: msg.message_id,
+      fromMe: msg.from_me,
+      remoteJid: msg.remote_jid,
+      messageType: msg.message_type,
+      text: msg.text || '',
+      timestamp: msg.timestamp,
+      pushName: msg.push_name || undefined,
+      status: msg.status || undefined,
+      hasMedia: msg.has_media,
+      mediaType: msg.media_type,
+    };
+
+    setMessages((prev) => {
+      // Evitar duplicatas
+      if (prev.some((m) => m.id === newMessage.id)) return prev;
+      // Substituir mensagem temporária (otimista) se for fromMe
+      if (newMessage.fromMe) {
+        const withoutTemp = prev.filter((m) => !m.id.startsWith('temp-'));
+        return [...withoutTemp, newMessage];
+      }
+      return [...prev, newMessage];
+    });
+  }, [lastChatEvent, remoteJid]);
 
   // Scroll automático para última mensagem
   React.useEffect(() => {
@@ -251,7 +300,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
       });
 
       if (!response.ok) {
-        // Marcar como erro
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempMessage.id ? { ...m, status: 'error' } : m
@@ -260,11 +308,14 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
         return;
       }
 
-      // Atualizar lista
-      if (onMessageSent) onMessageSent();
+      // Marcar como enviada (a mensagem real chegará via SSE)
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempMessage.id ? { ...m, status: 'sent' } : m
+        )
+      );
 
-      // Recarregar mensagens após envio
-      setTimeout(fetchMessages, 1000);
+      if (onMessageSent) onMessageSent();
     } catch (err) {
       console.error('Erro ao enviar:', err);
       setMessages((prev) =>
@@ -284,7 +335,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
     }
   };
 
-  // Agrupar mensagens por dia
   const getDateKey = (ts: number) => new Date(ts * 1000).toDateString();
 
   return (
@@ -301,7 +351,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
           borderColor: 'divider',
         }}
       >
-        {/* Botão voltar (mobile) */}
         <IconButton
           sx={{ display: { xs: 'inline-flex', md: 'none' } }}
           onClick={() => window.history.back()}
@@ -321,7 +370,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
           </Typography>
         </Box>
 
-        {/* Botão de toggle IA no header */}
         {!iaLoading && iaStatus.found && (
           iaStatus.ia_ativa ? (
             <Button
@@ -419,7 +467,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
         ) : (
           <>
             {messages.map((msg, index) => {
-              // Separador de data
               const showDate = index === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[index - 1].timestamp);
 
               return (
@@ -441,7 +488,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
                     </Box>
                   )}
 
-                  {/* Balão de mensagem */}
                   <Box
                     sx={{
                       display: 'flex',
@@ -461,7 +507,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
                         ...(msg.status === 'error' && { border: '1px solid', borderColor: 'error.main' }),
                       }}
                     >
-                      {/* Indicador de mídia */}
                       {msg.hasMedia && (
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                           {msg.mediaType === 'image' && '📷 '}
@@ -472,7 +517,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
                         </Typography>
                       )}
 
-                      {/* Texto da mensagem */}
                       <Typography
                         variant="body2"
                         sx={{
@@ -484,7 +528,6 @@ export function ChatThread({ remoteJid, contact, onMessageSent }: ChatThreadProp
                         {msg.text || (msg.hasMedia ? `[${msg.mediaType || 'Mídia'}]` : '[Mensagem não suportada]')}
                       </Typography>
 
-                      {/* Horário e status */}
                       <Box
                         sx={{
                           display: 'flex',

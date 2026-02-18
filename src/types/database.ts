@@ -384,6 +384,43 @@ export type AgendamentoServicoInput = Omit<AgendamentoServico, 'id'>;
 export type HistoricoConversaInput = Omit<HistoricoConversa, 'id'>;
 export type MensagemRecebidaInput = Omit<MensagemRecebida, 'id' | 'data_recebimento'>;
 
+// ==================== CHAT ====================
+
+export interface MensagemChat {
+  id: number;
+  empresa_id: number;
+  remote_jid: string;
+  message_id: string;
+  from_me: boolean;
+  push_name: string | null;
+  message_type: string;
+  text: string | null;
+  timestamp: number;
+  status: string | null;
+  has_media: boolean;
+  media_type: string | null;
+  media_url: string | null;
+  raw_data: Record<string, unknown> | null;
+  criado_em: Date;
+}
+
+export type MensagemChatInput = Omit<MensagemChat, 'id' | 'criado_em'>;
+
+export interface ChatContato {
+  id: number;
+  empresa_id: number;
+  remote_jid: string;
+  push_name: string | null;
+  profile_pic_url: string | null;
+  last_message_text: string | null;
+  last_message_timestamp: number | null;
+  last_message_from_me: boolean | null;
+  unread_count: number;
+  atualizado_em: Date;
+}
+
+export type ChatContatoInput = Omit<ChatContato, 'id' | 'atualizado_em'>;
+
 // ==================== NOTIFICAÇÕES ====================
 
 export interface Notificacao {
