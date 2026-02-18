@@ -27,6 +27,7 @@ const schema = z.object({
   empresa_id: z.coerce.number().nullable().optional(),
   nome: z.string().min(1, 'Nome é obrigatório'),
   email: z.string().email('Email inválido'),
+  telefone: z.string().optional().nullable(),
   senha_hash: z.string().optional(),
   papel: z.string().min(1, 'Papel é obrigatório'),
   ativo: z.boolean(),
@@ -66,6 +67,7 @@ export function UsuarioForm({ usuario, empresas = [], onSubmit, onCancel, loadin
       empresa_id: defaultEmpresaId,
       nome: usuario?.nome || '',
       email: usuario?.email || '',
+      telefone: usuario?.telefone || '',
       senha_hash: '',
       papel: usuario?.papel || defaultPapel || 'atendente',
       ativo: usuario?.ativo ?? true,
@@ -126,6 +128,19 @@ export function UsuarioForm({ usuario, empresas = [], onSubmit, onCancel, loadin
                     <InputLabel>Email</InputLabel>
                     <OutlinedInput {...field} label="Email" type="email" />
                     {errors.email && <FormHelperText>{errors.email.message}</FormHelperText>}
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Controller
+                name="telefone"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={Boolean(errors.telefone)}>
+                    <InputLabel>Telefone</InputLabel>
+                    <OutlinedInput {...field} value={field.value ?? ''} label="Telefone" type="tel" />
+                    {errors.telefone && <FormHelperText>{errors.telefone.message}</FormHelperText>}
                   </FormControl>
                 )}
               />

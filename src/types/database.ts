@@ -110,6 +110,7 @@ export interface Usuario {
   criado_em: Date;
   papel_empresa_id: number | null;
   url_foto: string | null;  // Foto de perfil do profissional
+  telefone: string | null;
 }
 
 // ==================== TABELAS COM 2 NÍVEIS DE DEPENDÊNCIA ====================

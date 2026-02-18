@@ -78,6 +78,7 @@ export function UsuariosTable({
               </TableCell>
               <TableCell>Nome</TableCell>
               <TableCell>Email</TableCell>
+              <TableCell>Telefone</TableCell>
               <TableCell>Empresa</TableCell>
               <TableCell>Papel</TableCell>
               <TableCell>Status</TableCell>
@@ -107,6 +108,7 @@ export function UsuariosTable({
                     <Typography variant="subtitle2">{row.nome}</Typography>
                   </TableCell>
                   <TableCell>{row.email}</TableCell>
+                  <TableCell>{row.telefone || '-'}</TableCell>
                   <TableCell>{row.empresa_nome || '-'}</TableCell>
                   <TableCell>
                     <Chip label={row.papel} size="small" color="primary" />

@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { empresa_id, nome, email, senha_hash, papel, ativo } = body;
+    const { empresa_id, nome, email, telefone, senha_hash, papel, ativo } = body;
 
     // Criptografar a senha antes de salvar
     const senhaHashCriptografada = senha_hash ? await bcrypt.hash(senha_hash, 10) : null;
@@ -91,11 +91,11 @@ export async function POST(request: NextRequest) {
     }
 
     const sql = `
-      INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel, ativo)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO usuarios (empresa_id, nome, email, telefone, senha_hash, papel, ativo)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
-    const params = [empresa_id, nome, email, senhaHashCriptografada, papel, ativo ?? true];
+    const params = [empresa_id, nome, email, telefone || null, senhaHashCriptografada, papel, ativo ?? true];
 
     const result = await queryOne<Usuario>(sql, params);
     return NextResponse.json(result, { status: 201 });

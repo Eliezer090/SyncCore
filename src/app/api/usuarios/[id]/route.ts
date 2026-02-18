@@ -35,7 +35,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { empresa_id, nome, email, senha_hash, papel, ativo } = body;
+    const { empresa_id, nome, email, telefone, senha_hash, papel, ativo } = body;
 
     let sql: string;
     let sqlParams: unknown[];
@@ -46,19 +46,19 @@ export async function PUT(
       
       sql = `
         UPDATE usuarios SET
-          empresa_id = $1, nome = $2, email = $3, senha_hash = $4, papel = $5, ativo = $6
-        WHERE id = $7
+          empresa_id = $1, nome = $2, email = $3, telefone = $4, senha_hash = $5, papel = $6, ativo = $7
+        WHERE id = $8
         RETURNING *
       `;
-      sqlParams = [empresa_id, nome, email, senhaHashCriptografada, papel, ativo, id];
+      sqlParams = [empresa_id, nome, email, telefone || null, senhaHashCriptografada, papel, ativo, id];
     } else {
       sql = `
         UPDATE usuarios SET
-          empresa_id = $1, nome = $2, email = $3, papel = $4, ativo = $5
-        WHERE id = $6
+          empresa_id = $1, nome = $2, email = $3, telefone = $4, papel = $5, ativo = $6
+        WHERE id = $7
         RETURNING *
       `;
-      sqlParams = [empresa_id, nome, email, papel, ativo, id];
+      sqlParams = [empresa_id, nome, email, telefone || null, papel, ativo, id];
     }
 
     const result = await queryOne<Usuario>(sql, sqlParams);
