@@ -74,18 +74,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio } = body;
+    const { nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio, modo_teste, numeros_permitidos } = body;
 
     // Converter strings vazias para null (evita erro de unique constraint)
     const whatsappNormalizado = whatsapp_vinculado?.trim() || null;
     const nomeAgenteNormalizado = nome_agente?.trim() || null;
+    const numerosLimpos = (Array.isArray(numeros_permitidos) ? numeros_permitidos : []).map(String).map((n) => n.replace(/\D/g, '')).filter(Boolean);
 
     const sql = `
-      INSERT INTO empresas (nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      INSERT INTO empresas (nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio, modo_teste, numeros_permitidos)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `;
-    const params = [nome, tipo_negocio, ativo ?? true, whatsappNormalizado, nomeAgenteNormalizado, modelo_negocio || 'ambos', oferece_delivery ?? false, taxa_entrega_padrao ?? 0, valor_minimo_entrega_gratis, tempo_cancelamento_minutos ?? 60, url_logo, descricao_negocio];
+    const params = [nome, tipo_negocio, ativo ?? true, whatsappNormalizado, nomeAgenteNormalizado, modelo_negocio || 'ambos', oferece_delivery ?? false, taxa_entrega_padrao ?? 0, valor_minimo_entrega_gratis, tempo_cancelamento_minutos ?? 60, url_logo, descricao_negocio, modo_teste ?? false, numerosLimpos];
 
     const result = await queryOne<Empresa>(sql, params);
     return NextResponse.json(result, { status: 201 });

@@ -23,7 +23,11 @@ import Select from '@mui/material/Select';
 import Switch from '@mui/material/Switch';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
+import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
+import { FlaskIcon } from '@phosphor-icons/react/dist/ssr/Flask';
 import { WhatsappLogo as WhatsAppIcon } from '@phosphor-icons/react/dist/ssr/WhatsappLogo';
 import { CheckCircle as CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { LinkSimple as LinkIcon } from '@phosphor-icons/react/dist/ssr/LinkSimple';
@@ -47,6 +51,8 @@ const schema = z.object({
   tempo_cancelamento_minutos: z.coerce.number().min(0).nullable().optional(),
   url_logo: z.string().nullable().optional(),
   descricao_negocio: z.string().nullable().optional(),
+  modo_teste: z.boolean(),
+  numeros_permitidos: z.array(z.string()),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -86,6 +92,8 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
       tempo_cancelamento_minutos: empresa?.tempo_cancelamento_minutos ?? 60,
       url_logo: empresa?.url_logo ?? null,
       descricao_negocio: empresa?.descricao_negocio ?? null,
+      modo_teste: empresa?.modo_teste ?? false,
+      numeros_permitidos: empresa?.numeros_permitidos ?? [],
     },
   });
 
@@ -133,11 +141,21 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
       tempo_cancelamento_minutos: empresa?.tempo_cancelamento_minutos ?? 60,
       url_logo: empresa?.url_logo ?? null,
       descricao_negocio: empresa?.descricao_negocio ?? null,
+      modo_teste: empresa?.modo_teste ?? false,
+      numeros_permitidos: empresa?.numeros_permitidos ?? [],
     });
   }, [empresa, reset]);
 
   const oferece_delivery = watch('oferece_delivery');
+  const modo_teste = watch('modo_teste');
   const nomeEmpresa = watch('nome');
+
+  // Limpa lista quando modo de teste é desativado
+  React.useEffect(() => {
+    if (!modo_teste) {
+      setValue('numeros_permitidos', [], { shouldDirty: true });
+    }
+  }, [modo_teste, setValue]);
 
   // Handler quando WhatsApp é conectado
   const handleWhatsAppConnected = (phoneNumber: string) => {
@@ -379,7 +397,7 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
               />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', height: '100%' }}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', height: '100%' }}>
                 <Controller
                   name="ativo"
                   control={control}
@@ -400,8 +418,81 @@ export function EmpresaForm({ empresa, onSubmit, onCancel, loading }: EmpresaFor
                     />
                   )}
                 />
+                <Controller
+                  name="modo_teste"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={field.value}
+                          onChange={field.onChange}
+                          color="warning"
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography variant="body2">Modo de Teste</Typography>
+                          {field.value && (
+                            <Chip label="Ativo" size="small" color="warning" sx={{ height: 18, fontSize: '0.65rem' }} />
+                          )}
+                        </Box>
+                      }
+                    />
+                  )}
+                />
               </Box>
             </Grid>
+            {modo_teste && (
+              <Grid size={{ xs: 12 }}>
+                <Alert
+                  severity="warning"
+                  icon={<FlaskIcon size={20} />}
+                  sx={{ mb: 2 }}
+                >
+                  <Typography variant="body2" fontWeight={600}>
+                    Modo de Teste ativo
+                  </Typography>
+                  <Typography variant="body2">
+                    A I.A. responderá <strong>somente</strong> para os números cadastrados abaixo.
+                    Mensagens de outros números serão ignoradas.
+                  </Typography>
+                </Alert>
+                <Controller
+                  name="numeros_permitidos"
+                  control={control}
+                  render={({ field }) => {
+                    const linhas = (field.value || []).join('\n');
+                    return (
+                      <FormControl fullWidth>
+                        <InputLabel shrink>Números permitidos (um por linha)</InputLabel>
+                        <OutlinedInput
+                          notched
+                          label="Números permitidos (um por linha)"
+                          multiline
+                          minRows={3}
+                          maxRows={10}
+                          value={linhas}
+                          inputProps={{ inputMode: 'numeric' }}
+                          onChange={(e) => {
+                            const lista = e.target.value
+                              .split(/[\n,;]+/)
+                              .map((n) => n.replace(/\D/g, ''))
+                              .filter(Boolean);
+                            field.onChange(lista);
+                          }}
+                          placeholder={'5511999990001\n5511999990002'}
+                        />
+                        <FormHelperText>
+                          Digite um número por linha (com DDI+DDD). Ex: 5511999990001
+                          {field.value?.length > 0 && ` — ${field.value.length} número(s) cadastrado(s)`}
+                        </FormHelperText>
+                      </FormControl>
+                    );
+                  }}
+                />
+              </Grid>
+            )}
             {oferece_delivery && (
               <>
                 <Grid size={{ xs: 12, md: 6 }}>

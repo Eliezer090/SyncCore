@@ -24,6 +24,8 @@ export interface Empresa {
   tempo_cancelamento_minutos: number | null;
   url_logo: string | null;
   descricao_negocio: string | null;
+  modo_teste: boolean;
+  numeros_permitidos: string[];
 }
 
 export interface HistoricoConversa {

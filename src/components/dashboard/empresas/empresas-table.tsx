@@ -84,6 +84,7 @@ export function EmpresasTable({
               <TableCell>Modelo</TableCell>
               <TableCell>WhatsApp</TableCell>
               <TableCell>Delivery</TableCell>
+              <TableCell>Modo Teste</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Criado em</TableCell>
               <TableCell align="right">Ações</TableCell>
@@ -129,6 +130,17 @@ export function EmpresasTable({
                       <Chip label="Sim" size="small" color="success" />
                     ) : (
                       <Chip label="Não" size="small" color="default" />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {row.modo_teste ? (
+                      <Chip
+                        label={`Teste (${row.numeros_permitidos?.length ?? 0})`}
+                        size="small"
+                        color="warning"
+                      />
+                    ) : (
+                      <Chip label="Normal" size="small" color="default" />
                     )}
                   </TableCell>
                   <TableCell>

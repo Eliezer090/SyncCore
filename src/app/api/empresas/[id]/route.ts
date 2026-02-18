@@ -30,11 +30,12 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio } = body;
+    const { nome, tipo_negocio, ativo, whatsapp_vinculado, nome_agente, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio, modo_teste, numeros_permitidos } = body;
 
     // Converter strings vazias para null (evita erro de unique constraint)
     const whatsappNormalizado = whatsapp_vinculado?.trim() || null;
     const nomeAgenteNormalizado = nome_agente?.trim() || null;
+    const numerosLimpos = (Array.isArray(numeros_permitidos) ? numeros_permitidos : []).map(String).map((n) => n.replace(/\D/g, '')).filter(Boolean);
 
     // Busca a empresa atual para verificar se a imagem mudou
     const empresaAtual = await queryOne<Empresa>('SELECT url_logo FROM empresas WHERE id = $1', [id]);
@@ -57,11 +58,13 @@ export async function PUT(
         valor_minimo_entrega_gratis = $9,
         tempo_cancelamento_minutos = $10,
         url_logo = $11,
-        descricao_negocio = $12
-      WHERE id = $13
+        descricao_negocio = $12,
+        modo_teste = $13,
+        numeros_permitidos = $14
+      WHERE id = $15
       RETURNING *
     `;
-    const sqlParams = [nome, tipo_negocio, ativo, whatsappNormalizado, nomeAgenteNormalizado, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio, id];
+    const sqlParams = [nome, tipo_negocio, ativo, whatsappNormalizado, nomeAgenteNormalizado, modelo_negocio, oferece_delivery, taxa_entrega_padrao, valor_minimo_entrega_gratis, tempo_cancelamento_minutos, url_logo, descricao_negocio, modo_teste ?? false, numerosLimpos, id];
 
     const result = await queryOne<Empresa>(sql, sqlParams);
 
