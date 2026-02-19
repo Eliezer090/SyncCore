@@ -163,7 +163,8 @@ async function processMessage(empresaId: number, msg: Record<string, unknown>): 
     if (!savedMsg) return;
 
     // Atualizar (ou criar) contato
-    const contato = await upsertContato(empresaId, remoteJid, pushName, text, timestamp, fromMe);
+    // Quando fromMe=true a mensagem veio do agente/bot — não sobrescrever o nome do contato
+    const contato = await upsertContato(empresaId, remoteJid, fromMe ? null : pushName, text, timestamp, fromMe);
 
     // Emitir eventos SSE
     chatEmitter.emitNovaMensagem(empresaId, savedMsg);
