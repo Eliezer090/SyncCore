@@ -310,13 +310,14 @@ export async function GET(request: NextRequest) {
       total: number;
     }>(
       `SELECT 
-        TO_CHAR(ce.criado_em, 'YYYY-MM-DD') as data,
+        TO_CHAR(c.criado_em, 'YYYY-MM-DD') as data,
         COUNT(*)::int as total
       FROM clientes_empresas ce
+      JOIN clientes c ON c.id = ce.cliente_id
       WHERE ce.empresa_id = $1
-        AND ce.criado_em >= $2::date
-        AND ce.criado_em < ($3::date + interval '1 day')
-      GROUP BY TO_CHAR(ce.criado_em, 'YYYY-MM-DD')
+        AND c.criado_em >= $2::date
+        AND c.criado_em < ($3::date + interval '1 day')
+      GROUP BY TO_CHAR(c.criado_em, 'YYYY-MM-DD')
       ORDER BY data`,
       [empresaId, dataInicio, dataFim]
     );
