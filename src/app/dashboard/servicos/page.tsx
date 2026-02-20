@@ -50,6 +50,9 @@ const schema = z.object({
   empresa_id: z.coerce.number().min(1, 'Empresa é obrigatória'),
   nome: z.string().min(1, 'Nome é obrigatório'),
   descricao: z.string().nullable().optional(),
+  preco: z.coerce.number().min(0, 'Preço deve ser maior ou igual a 0'),
+  duracao_minutos: z.coerce.number().int().min(1, 'Duração mínima é 1 minuto'),
+  antecedencia_minima_minutos: z.coerce.number().int().nullable().optional(),
   ativo: z.boolean(),
 });
 
@@ -72,7 +75,7 @@ export default function ServicosPage(): React.JSX.Element {
 
   const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { empresa_id: empresaId || 0, nome: '', descricao: '', ativo: true },
+    defaultValues: { empresa_id: empresaId || 0, nome: '', descricao: '', preco: 0, duracao_minutos: 30, antecedencia_minima_minutos: null, ativo: true },
   });
 
   // Atualiza empresa_id quando o hook carrega (para não-admin)
@@ -185,6 +188,9 @@ export default function ServicosPage(): React.JSX.Element {
       empresa_id: servico?.empresa_id || empresaId || 0,
       nome: servico?.nome || '',
       descricao: servico?.descricao || '',
+      preco: servico?.preco ?? 0,
+      duracao_minutos: servico?.duracao_minutos ?? 30,
+      antecedencia_minima_minutos: servico?.antecedencia_minima_minutos ?? null,
       ativo: servico?.ativo ?? true,
     });
     if (servico) {
@@ -200,7 +206,7 @@ export default function ServicosPage(): React.JSX.Element {
     setSelectedServico(null);
     setServicoImagens([]);
     setErrorMessage(null);
-    reset({ empresa_id: empresaId || 0, nome: '', descricao: '', ativo: true });
+    reset({ empresa_id: empresaId || 0, nome: '', descricao: '', preco: 0, duracao_minutos: 30, antecedencia_minima_minutos: null, ativo: true });
   };
 
   const onSubmit = async (data: FormData) => {
@@ -253,6 +259,8 @@ export default function ServicosPage(): React.JSX.Element {
               <TableRow>
                 <TableCell>Nome</TableCell>
                 <TableCell>Empresa</TableCell>
+                <TableCell>Preço Padrão</TableCell>
+                <TableCell>Duração</TableCell>
                 <TableCell>Descrição</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Ações</TableCell>
@@ -263,6 +271,8 @@ export default function ServicosPage(): React.JSX.Element {
                 <TableRow hover key={row.id}>
                   <TableCell><Typography variant="subtitle2">{row.nome}</Typography></TableCell>
                   <TableCell>{row.empresa_nome || '-'}</TableCell>
+                  <TableCell>R$ {Number(row.preco ?? 0).toFixed(2)}</TableCell>
+                  <TableCell>{row.duracao_minutos ?? '-'} min</TableCell>
                   <TableCell>{row.descricao || '-'}</TableCell>
                   <TableCell><Chip label={row.ativo ? 'Ativo' : 'Inativo'} size="small" color={row.ativo ? 'success' : 'error'} /></TableCell>
                   <TableCell align="right">
@@ -336,6 +346,56 @@ export default function ServicosPage(): React.JSX.Element {
                       <FormControl fullWidth>
                         <InputLabel>Descrição</InputLabel>
                         <OutlinedInput {...field} value={field.value || ''} label="Descrição" multiline rows={3} />
+                      </FormControl>
+                    )} />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller name="preco" control={control} render={({ field }) => (
+                      <FormControl fullWidth error={Boolean(errors.preco)}>
+                        <InputLabel>Preço Padrão</InputLabel>
+                        <OutlinedInput
+                          {...field}
+                          type="number"
+                          label="Preço Padrão"
+                          startAdornment={<InputAdornment position="start">R$</InputAdornment>}
+                          inputProps={{ min: 0, step: '0.01' }}
+                        />
+                        {errors.preco && <FormHelperText>{errors.preco.message}</FormHelperText>}
+                      </FormControl>
+                    )} />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller name="duracao_minutos" control={control} render={({ field }) => (
+                      <FormControl fullWidth error={Boolean(errors.duracao_minutos)}>
+                        <InputLabel>Duração Padrão</InputLabel>
+                        <OutlinedInput
+                          {...field}
+                          type="number"
+                          label="Duração Padrão"
+                          endAdornment={<InputAdornment position="end">min</InputAdornment>}
+                          inputProps={{ min: 1 }}
+                        />
+                        {errors.duracao_minutos
+                          ? <FormHelperText>{errors.duracao_minutos.message}</FormHelperText>
+                          : <FormHelperText>Tempo padrão de execução do serviço</FormHelperText>
+                        }
+                      </FormControl>
+                    )} />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller name="antecedencia_minima_minutos" control={control} render={({ field }) => (
+                      <FormControl fullWidth>
+                        <InputLabel>Antecedência Mínima</InputLabel>
+                        <OutlinedInput
+                          {...field}
+                          value={field.value ?? ''}
+                          type="number"
+                          label="Antecedência Mínima"
+                          endAdornment={<InputAdornment position="end">min</InputAdornment>}
+                          inputProps={{ min: 0 }}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)}
+                        />
+                        <FormHelperText>Opcional — tempo mínimo antes do horário para agendar</FormHelperText>
                       </FormControl>
                     )} />
                   </Grid>

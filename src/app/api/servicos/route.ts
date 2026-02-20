@@ -79,14 +79,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { empresa_id, nome, descricao, ativo, url_imagem } = body;
+    const { empresa_id, nome, descricao, ativo, url_imagem, preco, duracao_minutos, antecedencia_minima_minutos } = body;
 
     const sql = `
-      INSERT INTO servicos (empresa_id, nome, descricao, ativo, url_imagem)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO servicos (empresa_id, nome, descricao, ativo, url_imagem, preco, duracao_minutos, antecedencia_minima_minutos)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
-    const params = [empresa_id, nome, descricao, ativo ?? true, url_imagem];
+    const params = [empresa_id, nome, descricao, ativo ?? true, url_imagem, preco ?? 0, duracao_minutos ?? 30, antecedencia_minima_minutos ?? null];
 
     const result = await queryOne<Servico>(sql, params);
     return NextResponse.json(result, { status: 201 });

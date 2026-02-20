@@ -47,7 +47,7 @@ import { getAuthHeaders } from '@/lib/auth/client';
 const schema = z.object({
   usuario_id: z.coerce.number().min(1, 'Profissional é obrigatório'),
   servico_id: z.coerce.number().min(1, 'Serviço é obrigatório'),
-  duracao_minutos: z.coerce.number().min(1, 'Duração é obrigatória'),
+  duracao_minutos: z.coerce.number().int().nullable().optional(),
   preco: z.coerce.number().nullable().optional(),
   ativo: z.boolean(),
   antecedencia_minima_minutos: z.coerce.number().nullable().optional(),
@@ -72,7 +72,7 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
 
   const { control, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { usuario_id: 0, servico_id: 0, duracao_minutos: 30, preco: null, ativo: true, antecedencia_minima_minutos: 30 },
+    defaultValues: { usuario_id: 0, servico_id: 0, duracao_minutos: null, preco: null, ativo: true, antecedencia_minima_minutos: null },
   });
 
   const watchUsuarioId = watch('usuario_id');
@@ -151,10 +151,10 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
     reset({
       usuario_id: defaultUsuarioId,
       servico_id: vinculo?.servico_id || 0,
-      duracao_minutos: vinculo?.duracao_minutos || 30,
-      preco: vinculo?.preco || null,
+      duracao_minutos: vinculo?.duracao_minutos ?? null,
+      preco: vinculo?.preco ?? null,
       ativo: vinculo?.ativo ?? true,
-      antecedencia_minima_minutos: vinculo?.antecedencia_minima_minutos ?? 30,
+      antecedencia_minima_minutos: vinculo?.antecedencia_minima_minutos ?? null,
     });
     setDialogOpen(true);
   };
@@ -198,13 +198,13 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
           <Table sx={{ minWidth: '700px' }}>
             <TableHead>
               <TableRow>
-                <TableCell>Profissional</TableCell>
-                <TableCell>Serviço</TableCell>
-                <TableCell>Duração</TableCell>
-                <TableCell>Preço</TableCell>
-                <TableCell>Antecedência</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Ações</TableCell>
+                  <TableCell>Profissional</TableCell>
+                  <TableCell>Serviço</TableCell>
+                  <TableCell>Duração Efetiva</TableCell>
+                  <TableCell>Preço Efetivo</TableCell>
+                  <TableCell>Antecedência</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="right">Ações</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -212,9 +212,17 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
                 <TableRow hover key={row.id}>
                   <TableCell><Typography variant="subtitle2">{row.profissional_nome || '-'}</Typography></TableCell>
                   <TableCell>{row.servico_nome || '-'}</TableCell>
-                  <TableCell>{row.duracao_minutos} min</TableCell>
-                  <TableCell>{row.preco ? `R$ ${Number(row.preco).toFixed(2)}` : 'Preço padrão'}</TableCell>
-                  <TableCell>{row.antecedencia_minima_minutos ?? 30} min</TableCell>
+                  <TableCell>
+                    {row.duracao_minutos
+                      ? <>{row.duracao_minutos} min <Chip label="customizado" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: '0.6rem' }} /></>
+                      : <>{(row as { duracao_efetiva?: number }).duracao_efetiva ?? '-'} min <Chip label="padrão" size="small" color="info" sx={{ ml: 0.5, height: 18, fontSize: '0.6rem' }} /></>}
+                  </TableCell>
+                  <TableCell>
+                    {row.preco
+                      ? <>R$ {Number(row.preco).toFixed(2)} <Chip label="customizado" size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: '0.6rem' }} /></>
+                      : <>R$ {Number((row as { preco_efetivo?: number }).preco_efetivo ?? 0).toFixed(2)} <Chip label="padrão" size="small" color="info" sx={{ ml: 0.5, height: 18, fontSize: '0.6rem' }} /></>}
+                  </TableCell>
+                  <TableCell>{row.antecedencia_minima_minutos != null ? `${row.antecedencia_minima_minutos} min` : '-'}</TableCell>
                   <TableCell><Chip label={row.ativo ? 'Ativo' : 'Inativo'} size="small" color={row.ativo ? 'success' : 'error'} /></TableCell>
                   <TableCell align="right">
                     <Tooltip title="Editar"><IconButton onClick={() => handleOpenDialog(row)}><PencilSimpleIcon /></IconButton></Tooltip>
@@ -282,17 +290,34 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Controller name="duracao_minutos" control={control} render={({ field }) => (
                       <FormControl fullWidth error={Boolean(errors.duracao_minutos)}>
-                        <InputLabel>Duração</InputLabel>
-                        <OutlinedInput {...field} type="number" label="Duração" endAdornment={<InputAdornment position="end">min</InputAdornment>} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)} />
-                        {errors.duracao_minutos && <FormHelperText>{errors.duracao_minutos.message}</FormHelperText>}
+                        <InputLabel>Duração Personalizada</InputLabel>
+                        <OutlinedInput
+                          {...field}
+                          value={field.value ?? ''}
+                          type="number"
+                          label="Duração Personalizada"
+                          endAdornment={<InputAdornment position="end">min</InputAdornment>}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)}
+                        />
+                        <FormHelperText>
+                          {errors.duracao_minutos?.message || 'Deixe vazio para usar a duração padrão do serviço'}
+                        </FormHelperText>
                       </FormControl>
                     )} />
                   </Grid>
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Controller name="preco" control={control} render={({ field }) => (
                       <FormControl fullWidth>
-                        <InputLabel>Preço Customizado</InputLabel>
-                        <OutlinedInput {...field} value={field.value || ''} type="number" label="Preço Customizado" startAdornment={<InputAdornment position="start">R$</InputAdornment>} onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)} />
+                        <InputLabel>Preço Personalizado</InputLabel>
+                        <OutlinedInput
+                          {...field}
+                          value={field.value ?? ''}
+                          type="number"
+                          label="Preço Personalizado"
+                          startAdornment={<InputAdornment position="start">R$</InputAdornment>}
+                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                        />
+                        <FormHelperText>Deixe vazio para usar o preço padrão do serviço</FormHelperText>
                       </FormControl>
                     )} />
                   </Grid>
@@ -300,8 +325,8 @@ export default function ServicosProfissionalPage(): React.JSX.Element {
                     <Controller name="antecedencia_minima_minutos" control={control} render={({ field }) => (
                       <FormControl fullWidth>
                         <InputLabel>Antecedência Mínima</InputLabel>
-                        <OutlinedInput {...field} value={field.value ?? 30} type="number" label="Antecedência Mínima" endAdornment={<InputAdornment position="end">min</InputAdornment>} onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)} />
-                        <FormHelperText>Tempo mínimo para agendar este serviço</FormHelperText>
+                        <OutlinedInput {...field} value={field.value ?? ''} type="number" label="Antecedência Mínima" endAdornment={<InputAdornment position="end">min</InputAdornment>} onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)} />
+                        <FormHelperText>Deixe vazio para usar a do serviço</FormHelperText>
                       </FormControl>
                     )} />
                   </Grid>

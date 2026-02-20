@@ -97,6 +97,9 @@ export interface Servico {
   empresa_id: number;
   nome: string;
   descricao: string | null;
+  preco: number;
+  duracao_minutos: number;
+  antecedencia_minima_minutos: number | null;
   ativo: boolean;
   url_imagem: string | null;
 }
@@ -209,10 +212,15 @@ export interface ServicoProfissional {
   id: number;
   usuario_id: number;  // Antes era profissional_id, agora aponta para usuarios
   servico_id: number;
-  duracao_minutos: number;
-  preco: number | null;
+  duracao_minutos: number | null;  // null = usa duracao_minutos do serviço
+  preco: number | null;            // null = usa preco do serviço
   ativo: boolean;
   antecedencia_minima_minutos: number | null;
+  // Campos calculados (JOIN com servicos)
+  servico_preco_padrao?: number;
+  servico_duracao_padrao?: number;
+  preco_efetivo?: number;
+  duracao_efetiva?: number;
 }
 
 export interface ServicoImagem {

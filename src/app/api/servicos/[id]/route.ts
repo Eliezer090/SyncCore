@@ -43,7 +43,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { empresa_id, nome, descricao, ativo, url_imagem } = body;
+    const { empresa_id, nome, descricao, ativo, url_imagem, preco, duracao_minutos, antecedencia_minima_minutos } = body;
 
     // Busca o serviço atual para verificar se a imagem mudou
     const servicoAtual = await queryOne<Servico>('SELECT url_imagem FROM servicos WHERE id = $1', [id]);
@@ -55,11 +55,12 @@ export async function PUT(
 
     const sql = `
       UPDATE servicos SET
-        empresa_id = $1, nome = $2, descricao = $3, ativo = $4, url_imagem = $5
-      WHERE id = $6
+        empresa_id = $1, nome = $2, descricao = $3, ativo = $4, url_imagem = $5,
+        preco = $6, duracao_minutos = $7, antecedencia_minima_minutos = $8
+      WHERE id = $9
       RETURNING *
     `;
-    const sqlParams = [empresa_id, nome, descricao, ativo, url_imagem, id];
+    const sqlParams = [empresa_id, nome, descricao, ativo, url_imagem, preco ?? 0, duracao_minutos ?? 30, antecedencia_minima_minutos ?? null, id];
 
     const result = await queryOne<Servico>(sql, sqlParams);
 

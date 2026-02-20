@@ -52,7 +52,14 @@ export async function GET(request: NextRequest) {
     const total = parseInt(countResult[0].count);
 
     const data = await query<ServicoProfissional & { profissional_nome?: string; servico_nome?: string }>(`
-      SELECT sp.*, u.nome as profissional_nome, s.nome as servico_nome
+      SELECT sp.*,
+        u.nome as profissional_nome,
+        s.nome as servico_nome,
+        s.preco as servico_preco_padrao,
+        s.duracao_minutos as servico_duracao_padrao,
+        COALESCE(sp.preco, s.preco) as preco_efetivo,
+        COALESCE(sp.duracao_minutos, s.duracao_minutos) as duracao_efetiva,
+        COALESCE(sp.antecedencia_minima_minutos, s.antecedencia_minima_minutos) as antecedencia_efetiva
       FROM servicos_profissional sp
       JOIN usuarios u ON sp.usuario_id = u.id
       LEFT JOIN servicos s ON sp.servico_id = s.id
@@ -83,7 +90,7 @@ export async function POST(request: NextRequest) {
       INSERT INTO servicos_profissional (usuario_id, servico_id, duracao_minutos, preco, ativo, antecedencia_minima_minutos)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [usuario_id, servico_id, duracao_minutos, preco || null, ativo !== false, antecedencia_minima_minutos ?? 30]);
+    `, [usuario_id, servico_id, duracao_minutos ?? null, preco || null, ativo !== false, antecedencia_minima_minutos ?? null]);
 
     return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
